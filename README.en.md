@@ -116,7 +116,7 @@ Running prompts emit stderr output as their own, color-coded error bubbles in th
 npm install
 ```
 
-`config.json` is created automatically on first launch (default vault `C:\Obsidian\my-knowledge-base`). Vaults can then be managed conveniently from the **Settings** view in the app — manually editing the file is no longer necessary. An existing old-format `config.json` (`{ "vaultPath": "..." }`) is automatically migrated to the new multi-vault format on startup.
+`config.json` is created automatically on first launch in the per-user data directory (`%APPDATA%\Brain\config.json` on Windows — **not** the install folder, see [`config.json` Reference](#configjson-reference)), with a placeholder vault path that the first-run onboarding dialog immediately replaces. Everything else runs through the **Settings** view in the app — manually editing the file is never necessary, including after installing via the installer. An existing old-format `config.json` (`{ "vaultPath": "..." }`) is automatically migrated to the new multi-vault format on startup.
 
 ## Start
 
@@ -136,7 +136,7 @@ npm run dist
 
 Builds the frontend and packages the app via `electron-builder` into a Windows installer `.exe` under `release/`.
 
-> **Windows note:** `electron-builder` downloads an archive for its code-signing tools, and extracting it creates symbolic links. Without **Developer Mode** enabled (Settings → Privacy & security → For developers) or without running the terminal **"as Administrator"**, this fails with `Cannot create symbolic link` — enable one of those once and it'll work.
+> **Windows note:** `electron-builder` downloads a tool package for Windows builds (including `rcedit`, used to embed the icon/version info into the `.exe` — this happens regardless of code signing). Extracting that archive creates symbolic links, which fails with `Cannot create symbolic link` unless **Developer Mode** is enabled (Settings → Privacy & security → For developers) or the terminal is run **"as Administrator"** — enable either once and it'll work. (Despite tips floating around online, the `CSC_IDENTITY_AUTO_DISCOVERY=false` env var does **not** help here — it only affects signing-identity discovery, not this download.)
 
 ## Tech Stack
 
@@ -149,7 +149,7 @@ Builds the frontend and packages the app via `electron-builder` into a Windows i
 
 ## `config.json` Reference
 
-Created and migrated automatically — manually editing it usually isn't necessary (everything runs through the Settings view), but for reference:
+Lives under `app.getPath('userData')` — `%APPDATA%\Brain\config.json` on Windows —, **not** the app's install folder. That's deliberate for an installed app: the install folder is typically read-only for a regular user account (e.g. `Program Files`) and gets replaced on every update/reinstall, while the user-data folder persists. `history.json` and `stats.json` live in the same folder. Created and migrated automatically — manually editing it usually isn't necessary (everything runs through the Settings view or the onboarding dialog), but for reference:
 
 ```json
 {
@@ -202,8 +202,8 @@ Created and migrated automatically — manually editing it usually isn't necessa
 ## Notes
 
 - All prompts run with `--allowedTools Bash,Write,Read,Edit` in the context of the currently active vault folder.
-- `history.json`, `stats.json`, `dist/` (Vite build output), and `release/` (electron-builder output) are generated locally and aren't part of the repo.
-- `config.json` only contains local paths, no secrets — safe to commit, though multiple users of the repo may want to override paths individually.
+- `config.json`, `history.json`, and `stats.json` live in the per-user data directory (`%APPDATA%\Brain` on Windows, see [`config.json` Reference](#configjson-reference)) and are never part of the repo or the packaged app — every install gets its own, independent of updates/reinstalls.
+- `dist/` (Vite build output) and `release/` (electron-builder output) are also generated locally and aren't part of the repo.
 - If an automatic sync (interval or startup) runs while you're continuing a chat with `--continue`, the sync run counts as the "most recent conversation" for the Claude CLI. A chat message sent afterward will then follow on from the sync's context instead of your actual conversation — "New Chat" or waiting for the sync to finish helps in that case.
 - **Closing the window no longer quits the app** — the X button just minimizes to the tray (the icon in the taskbar's notification area) so auto-sync can keep running in the background. Actually quitting only works via "Quit" in the tray menu (right-click the icon).
 - Drag-and-drop in the vault resolves files via `webUtils.getPathForFile()` (not the older `File.path`, which newer Electron versions removed for security reasons).

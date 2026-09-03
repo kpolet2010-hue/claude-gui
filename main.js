@@ -5,10 +5,41 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const CONFIG_PATH = path.join(__dirname, 'config.json');
-const HISTORY_PATH = path.join(__dirname, 'history.json');
-const STATS_PATH = path.join(__dirname, 'stats.json');
+// Ensures the per-user data directory (e.g. %APPDATA%\Brain) is named after the product rather
+// than the npm package name ("claude-gui"), which is what Electron would use otherwise.
+app.setName('Brain');
+
+// Written at runtime, so these must live in the per-user data directory rather than next to the
+// app itself — an installed app's own folder is typically read-only (Program Files) or inside a
+// read-only asar archive, and gets wiped/replaced on every update/reinstall.
+let CONFIG_PATH;
+let HISTORY_PATH;
+let STATS_PATH;
 const ICON_PATH = path.join(__dirname, 'icon.png');
+
+function migrateLegacyDataFiles(userDataDir) {
+  // Carries over config/history/stats from the old (pre-userData) location used when this app
+  // was only ever run from source, so existing local data isn't silently lost.
+  for (const name of ['config.json', 'history.json', 'stats.json']) {
+    const legacyPath = path.join(__dirname, name);
+    const newPath = path.join(userDataDir, name);
+    if (fs.existsSync(legacyPath) && !fs.existsSync(newPath)) {
+      try {
+        fs.copyFileSync(legacyPath, newPath);
+      } catch {
+        // read-only install directory (e.g. inside an asar) — nothing to migrate from anyway
+      }
+    }
+  }
+}
+
+function initDataPaths() {
+  const userDataDir = app.getPath('userData');
+  migrateLegacyDataFiles(userDataDir);
+  CONFIG_PATH = path.join(userDataDir, 'config.json');
+  HISTORY_PATH = path.join(userDataDir, 'history.json');
+  STATS_PATH = path.join(userDataDir, 'stats.json');
+}
 
 const DEFAULT_ACTIONS = [
   {
@@ -90,7 +121,7 @@ function loadConfig() {
   };
 }
 
-let configState = loadConfig();
+let configState;
 
 function saveConfig() {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(configState, null, 2));
@@ -173,6 +204,8 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  initDataPaths();
+  configState = loadConfig();
   Menu.setApplicationMenu(null);
   createWindow();
   createTray();

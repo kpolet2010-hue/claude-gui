@@ -116,7 +116,7 @@ Laufende Prompts geben stderr-Ausgaben als eigene, farblich abgesetzte Fehler-Bu
 npm install
 ```
 
-`config.json` wird beim ersten Start automatisch angelegt (Default-Vault `C:\Obsidian\my-knowledge-base`). Vaults lassen sich danach bequem über die **Einstellungen**-Ansicht in der App verwalten — manuelles Editieren der Datei ist nicht mehr nötig. Ein bereits vorhandenes altes `config.json` im Format `{ "vaultPath": "..." }` wird beim Start automatisch ins neue Multi-Vault-Format migriert.
+`config.json` wird beim ersten Start automatisch im Benutzerdaten-Ordner angelegt (`%APPDATA%\Brain\config.json` unter Windows — **nicht** im Installationsordner, siehe [`config.json`-Referenz](#configjson-referenz)), mit einem Platzhalter-Vaultpfad, der über den Onboarding-Dialog beim ersten Start sofort ersetzt wird. Alles Weitere läuft über die **Einstellungen**-Ansicht in der App — manuelles Bearbeiten der Datei ist nie nötig, auch nach der Installation über den Installer nicht. Ein bereits vorhandenes altes `config.json` im Format `{ "vaultPath": "..." }` wird beim Start automatisch ins neue Multi-Vault-Format migriert.
 
 ## Start
 
@@ -136,7 +136,7 @@ npm run dist
 
 Baut das Frontend und packt die App via `electron-builder` zu einer Windows-Installer-`.exe` in `release/`.
 
-> **Hinweis für Windows:** `electron-builder` lädt für die Codesignatur-Tools ein Archiv herunter, dessen Entpacken symbolische Links anlegt. Ohne aktivierten **Entwicklermodus** (Einstellungen → Datenschutz & Sicherheit → Für Entwickler) oder ohne Terminal **"Als Administrator ausführen"** schlägt das mit `Cannot create symbolic link` fehl — einmal aktivieren, dann läuft's.
+> **Hinweis für Windows:** `electron-builder` lädt für Windows-Builds ein Tool-Paket herunter (u. a. `rcedit`, zum Einbetten von Icon/Versionsinfo in die `.exe` — das passiert auch ohne Codesignatur). Das Entpacken dieses Archivs legt symbolische Links an, was ohne aktivierten **Entwicklermodus** (Einstellungen → Datenschutz & Sicherheit → Für Entwickler) oder ohne Terminal **"Als Administrator ausführen"** mit `Cannot create symbolic link` fehlschlägt — einmal eines von beiden aktivieren, dann läuft's. (Die Umgebungsvariable `CSC_IDENTITY_AUTO_DISCOVERY=false` hilft hier trotz anderslautender Tipps im Netz **nicht**, da sie nur die Signatur-Identitätssuche betrifft, nicht diesen Download.)
 
 ## Tech Stack
 
@@ -149,7 +149,7 @@ Baut das Frontend und packt die App via `electron-builder` zu einer Windows-Inst
 
 ## `config.json`-Referenz
 
-Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweise nicht nötig (alles läuft über die Einstellungen-Ansicht), aber zum Nachschlagen:
+Liegt unter `app.getPath('userData')` — unter Windows `%APPDATA%\Brain\config.json` —, **nicht** im Installationsordner der App. Das ist bei einer installierten App absichtlich so: Der Installationsordner ist bei einem normalen Nutzerkonto meist schreibgeschützt (z. B. `Program Files`) und wird bei jedem Update/jeder Neuinstallation ersetzt, während der Benutzerdaten-Ordner erhalten bleibt. `history.json` und `stats.json` liegen im selben Ordner. Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweise nicht nötig (alles läuft über die Einstellungen-Ansicht bzw. den Onboarding-Dialog), aber zum Nachschlagen:
 
 ```json
 {
@@ -202,8 +202,8 @@ Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweis
 ## Hinweise
 
 - Alle Prompts laufen mit `--allowedTools Bash,Write,Read,Edit` im Kontext des jeweils aktiven Vault-Ordners.
-- `history.json`, `stats.json`, `dist/` (Vite-Build-Output) und `release/` (electron-builder-Output) werden lokal erzeugt und sind nicht Teil des Repos.
-- `config.json` enthält nur lokale Pfade, keine Secrets — kann bedenkenlos mitcommittet werden, sollte aber bei mehreren Nutzern des Repos ggf. individuelle Pfade überschreiben.
+- `config.json`, `history.json` und `stats.json` liegen im Benutzerdaten-Ordner (`%APPDATA%\Brain` unter Windows, siehe [`config.json`-Referenz](#configjson-referenz)) und sind nie Teil des Repos oder der gepackten App — jede Installation bekommt ihre eigenen, unabhängig von Updates/Neuinstallationen.
+- `dist/` (Vite-Build-Output) und `release/` (electron-builder-Output) werden lokal erzeugt und sind ebenfalls nicht Teil des Repos.
 - Läuft ein automatischer Sync (Intervall oder Start), während du gerade einen Chat mit `--continue` fortführst, zählt der Sync-Lauf für die Claude-CLI als "letzte Konversation". Eine danach gesendete Chat-Nachricht knüpft dann an den Sync-Kontext statt an dein eigentliches Gespräch an — in dem Fall hilft "Neuer Chat" oder kurz warten, bis der Sync durch ist.
 - **Fenster schließen beendet die App nicht mehr** — das X-Symbol minimiert nur ins Tray (Symbol im Infobereich der Taskleiste), damit Auto-Sync im Hintergrund weiterlaufen kann. Echtes Beenden geht nur über "Beenden" im Tray-Menü (Rechtsklick auf das Icon).
 - Beim Drag & Drop im Vault werden Dateien per `webUtils.getPathForFile()` aufgelöst (nicht mehr über das ältere `File.path`, das neuere Electron-Versionen aus Sicherheitsgründen entfernt haben).

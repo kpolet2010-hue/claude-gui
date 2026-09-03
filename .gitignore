@@ -3,3 +3,4 @@ dist/
 release/
 history.json
 stats.json
+config.json
