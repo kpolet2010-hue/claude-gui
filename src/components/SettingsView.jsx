@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
 
-const emptyConfig = { vaults: [], activeVault: '', autoSync: { enabled: false, intervalMinutes: 60, runOnStartup: false } };
+const emptyConfig = {
+  vaults: [],
+  activeVault: '',
+  autoSync: { enabled: false, intervalMinutes: 60, runOnStartup: false },
+  theme: 'sunset',
+};
+
+const THEMES = [
+  { id: 'sunset', label: 'Sunset', swatch: '#c96442' },
+  { id: 'midnight', label: 'Midnight', swatch: '#5b6ee8' },
+  { id: 'forest', label: 'Forest', swatch: '#3f9d72' },
+  { id: 'light', label: 'Light', swatch: '#c96442' },
+];
 
 export default function SettingsView({ active, onVaultChanged }) {
   const [config, setConfig] = useState(emptyConfig);
@@ -70,6 +82,12 @@ export default function SettingsView({ active, onVaultChanged }) {
 
   async function saveAutoSync(patch) {
     const updated = await window.claudeAPI.updateAutoSync({ ...config.autoSync, ...patch });
+    setConfig(updated);
+  }
+
+  async function selectTheme(themeId) {
+    document.documentElement.setAttribute('data-theme', themeId);
+    const updated = await window.claudeAPI.setTheme(themeId);
     setConfig(updated);
   }
 
@@ -149,6 +167,22 @@ export default function SettingsView({ active, onVaultChanged }) {
           <button className="preset-btn" style={{ width: 'auto' }} onClick={addVault}>
             + Vault hinzufügen
           </button>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-label">Design</div>
+        <div className="settings-theme-list">
+          {THEMES.map((theme) => (
+            <button
+              key={theme.id}
+              className={`settings-theme-swatch ${config.theme === theme.id ? 'active' : ''}`}
+              onClick={() => selectTheme(theme.id)}
+            >
+              <span className="settings-theme-dot" style={{ background: theme.swatch }}></span>
+              {theme.label}
+            </button>
+          ))}
         </div>
       </div>
 

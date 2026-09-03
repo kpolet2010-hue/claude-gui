@@ -23,4 +23,5 @@ contextBridge.exposeInMainWorld('claudeAPI', {
   setActiveVault: (name) => ipcRenderer.invoke('set-active-vault', name),
   pickFolder: () => ipcRenderer.invoke('pick-folder'),
   updateAutoSync: (autoSync) => ipcRenderer.invoke('update-auto-sync', autoSync),
+  setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),
 });

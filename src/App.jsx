@@ -23,6 +23,11 @@ export default function App() {
       if (history && history.length) setMessages(history);
       historyLoadedRef.current = true;
     })();
+
+    (async () => {
+      const config = await window.claudeAPI.getConfig();
+      document.documentElement.setAttribute('data-theme', config.theme || 'sunset');
+    })();
   }, []);
 
   useEffect(() => {

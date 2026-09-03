@@ -16,6 +16,7 @@ function defaultConfig() {
     vaults: [{ name: 'Default', path: 'C:\\Obsidian\\my-knowledge-base' }],
     activeVault: 'Default',
     autoSync: { enabled: false, intervalMinutes: 60, runOnStartup: false },
+    theme: 'sunset',
   };
 }
 
@@ -34,6 +35,7 @@ function loadConfig() {
       vaults: [{ name: 'Default', path: raw.vaultPath }],
       activeVault: 'Default',
       autoSync: { ...defaultConfig().autoSync, ...(raw.autoSync || {}) },
+      theme: raw.theme || defaultConfig().theme,
     };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(migrated, null, 2));
     return migrated;
@@ -43,6 +45,7 @@ function loadConfig() {
     vaults: raw.vaults && raw.vaults.length ? raw.vaults : defaultConfig().vaults,
     activeVault: raw.activeVault || raw.vaults?.[0]?.name || 'Default',
     autoSync: { ...defaultConfig().autoSync, ...(raw.autoSync || {}) },
+    theme: raw.theme || defaultConfig().theme,
   };
 }
 
@@ -410,6 +413,12 @@ function scheduleAutoSync() {
     autoSyncInterval = setInterval(runAutoSync, intervalMinutes * 60 * 1000);
   }
 }
+
+ipcMain.handle('set-theme', async (event, theme) => {
+  configState.theme = theme;
+  saveConfig();
+  return configState;
+});
 
 ipcMain.handle('update-auto-sync', async (event, autoSync) => {
   configState.autoSync = { ...configState.autoSync, ...autoSync };

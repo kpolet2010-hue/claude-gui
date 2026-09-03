@@ -94,13 +94,13 @@ export default function HomeView({ active, vaultVersion }) {
         <svg id="glowChart" viewBox="0 0 600 220" preserveAspectRatio="none">
           <defs>
             <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#c96442" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#c96442" stopOpacity="0" />
+              <stop className="area-stop-start" offset="0%" stopOpacity="0.35" />
+              <stop className="area-stop-end" offset="100%" stopOpacity="0" />
             </linearGradient>
           </defs>
 
           <path id="areaPath" fill="url(#areaFill)" stroke="none" d={promptArea}></path>
-          <path id="linePath" fill="none" stroke="#c96442" strokeWidth="2" d={promptLine}></path>
+          <path id="linePath" fill="none" strokeWidth="2" d={promptLine}></path>
 
           <g id="dots">
             {promptPoints.map((p, i) => (
@@ -108,7 +108,7 @@ export default function HomeView({ active, vaultVersion }) {
             ))}
           </g>
 
-          <path id="gitLinePath" fill="none" stroke="#3ecf8e" strokeWidth="2" strokeDasharray="5,4" d={gitLine}></path>
+          <path id="gitLinePath" fill="none" strokeWidth="2" strokeDasharray="5,4" d={gitLine}></path>
         </svg>
         <div id="graph-labels">
           {days.map((d) => (

@@ -24,9 +24,10 @@ Jeder Klick auf eine Aktion (z. B. "Wiki neu bauen") startet `claude` mit `cwd` 
 - **Usage** — Session- und Wochenlimit von Claude Code auf einen Blick (`/usage`)
 - **Vault** — Übersicht über vorhandene Wiki-Themen und Rohquellen; Klick auf einen Eintrag öffnet den Dateiinhalt (Markdown gerendert bei `.md`)
 - **Verlauf** — bisherige Claude-Code-Sessions im aktiven Vault durchstöbern
-- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), sowie automatisches Sync konfigurieren:
+- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), Design-Theme wählen, sowie automatisches Sync konfigurieren:
   - beim App-Start automatisch "Neue Sources" ausführen
   - und/oder in einem festen Intervall (Minuten) im Hintergrund
+- **Themes** — vier Farbschemata zur Auswahl (Sunset, Midnight, Forest, Light), gespeichert in `config.json` und beim nächsten Start automatisch wieder aktiv
 
 Laufende Prompts geben stderr-Ausgaben als eigene, farblich abgesetzte Fehler-Bubbles im Chat aus, statt sie stillschweigend im Output zu verstecken.
 

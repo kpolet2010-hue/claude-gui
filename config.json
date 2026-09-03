@@ -10,5 +10,6 @@
     "enabled": false,
     "intervalMinutes": 60,
     "runOnStartup": false
-  }
+  },
+  "theme": "light"
 }
