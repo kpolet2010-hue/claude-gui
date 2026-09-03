@@ -61,14 +61,47 @@ Running prompts emit stderr output as their own, color-coded error bubbles in th
 
 ## Keyboard Shortcuts
 
+**Global** (anywhere in the app)
+
 | Shortcut | Effect |
 | --- | --- |
-| `Ctrl+N` | New chat (jumps to the chat view and starts a fresh thread) |
+| `Ctrl+N` | New chat thread (jumps to the chat view) |
 | `Ctrl+K` | Jump to the vault view and focus the search field |
-| `Ctrl+P` | Open the command palette (quick search over views/actions) |
-| `Esc` | Close an open modal (file viewer, git diff, command palette) |
-| `↑` / `↓` in the chat input | Cycle through recently sent prompts |
-| `Enter` in the chat input | Send the prompt |
+| `Ctrl+P` | Open the command palette |
+
+**Chat input field**
+
+| Shortcut | Effect |
+| --- | --- |
+| `Enter` | Send the prompt |
+| `↑` | Insert the previous prompt from history |
+| `↓` | Insert the next prompt, or restore the unsent draft |
+
+**Command Palette** (while open)
+
+| Shortcut | Effect |
+| --- | --- |
+| Typing | Filters commands live |
+| `Enter` | Run the top (first) result |
+| `Esc` | Close |
+
+**Modals** (file viewer, git diff)
+
+| Shortcut | Effect |
+| --- | --- |
+| `Esc` | Close |
+
+**Vault / History search field**
+
+| Shortcut | Effect |
+| --- | --- |
+| `Enter` | Start the full-text content search |
+
+**Other interactions**
+
+| Action | Effect |
+| --- | --- |
+| Double-click a chat thread | Rename it |
 
 ## Requirements
 

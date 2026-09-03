@@ -61,14 +61,47 @@ Laufende Prompts geben stderr-Ausgaben als eigene, farblich abgesetzte Fehler-Bu
 
 ## Tastenkürzel
 
+**Global** (überall in der App)
+
 | Kürzel | Wirkung |
 | --- | --- |
-| `Strg+N` | Neuer Chat (springt zur Chat-Ansicht und leert sie) |
+| `Strg+N` | Neuer Chat-Thread (springt zur Chat-Ansicht) |
 | `Strg+K` | Zur Vault-Ansicht springen und das Suchfeld fokussieren |
-| `Strg+P` | Command Palette öffnen (Ansichten/Aktionen per Schnellsuche) |
-| `Esc` | Offenes Modal schließen (Datei-Viewer, Git-Diff, Command Palette) |
-| `↑` / `↓` im Chat-Eingabefeld | Durch zuletzt gesendete Prompts blättern |
-| `Enter` im Chat-Eingabefeld | Prompt senden |
+| `Strg+P` | Command Palette öffnen |
+
+**Chat-Eingabefeld**
+
+| Kürzel | Wirkung |
+| --- | --- |
+| `Enter` | Prompt senden |
+| `↑` | Vorherigen Prompt aus dem Verlauf einsetzen |
+| `↓` | Nächsten Prompt einsetzen bzw. zurück zum ungesendeten Entwurf |
+
+**Command Palette** (während sie geöffnet ist)
+
+| Kürzel | Wirkung |
+| --- | --- |
+| Tippen | Befehle live filtern |
+| `Enter` | Obersten (ersten) Treffer ausführen |
+| `Esc` | Schließen |
+
+**Modals** (Datei-Viewer, Git-Diff)
+
+| Kürzel | Wirkung |
+| --- | --- |
+| `Esc` | Schließen |
+
+**Vault- / Verlauf-Suchfeld**
+
+| Kürzel | Wirkung |
+| --- | --- |
+| `Enter` | Volltextsuche im Inhalt starten |
+
+**Sonstige Interaktionen**
+
+| Aktion | Wirkung |
+| --- | --- |
+| Doppelklick auf einen Chat-Thread | Thread umbenennen |
 
 ## Voraussetzungen
 
