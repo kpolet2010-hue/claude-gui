@@ -8,7 +8,7 @@ function formatSessionDate(iso) {
   return `vor ${days} Tagen`;
 }
 
-export default function SessionsView({ active }) {
+export default function SessionsView({ active, vaultVersion }) {
   const [sessions, setSessions] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [messages, setMessages] = useState(null);
@@ -19,7 +19,7 @@ export default function SessionsView({ active }) {
     setSelectedId(null);
     setMessages(null);
     (async () => setSessions(await window.claudeAPI.listSessions()))();
-  }, [active]);
+  }, [active, vaultVersion]);
 
   async function openSession(id) {
     setSelectedId(id);

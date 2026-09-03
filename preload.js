@@ -1,14 +1,26 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('claudeAPI', {
-  runClaude: (prompt) => ipcRenderer.invoke('run-claude', prompt),
+  runClaude: (prompt, continueConversation) => ipcRenderer.invoke('run-claude', prompt, continueConversation),
+  stopClaude: () => ipcRenderer.invoke('stop-claude'),
   onStream: (callback) => ipcRenderer.on('claude-stream', (event, data) => callback(data)),
+  onStreamError: (callback) => ipcRenderer.on('claude-stream-error', (event, data) => callback(data)),
+  onAutoSyncStart: (callback) => ipcRenderer.on('auto-sync-start', () => callback()),
+  onAutoSyncEnd: (callback) => ipcRenderer.on('auto-sync-end', () => callback()),
   saveHistory: (messages) => ipcRenderer.invoke('save-history', messages),
   loadHistory: () => ipcRenderer.invoke('load-history'),
   getUsage: () => ipcRenderer.invoke('get-usage'),
   getPromptStats: () => ipcRenderer.invoke('get-prompt-stats'),
   getGitStats: () => ipcRenderer.invoke('get-git-stats'),
   getVault: () => ipcRenderer.invoke('get-vault'),
+  getVaultFile: (type, name) => ipcRenderer.invoke('get-vault-file', { type, name }),
   listSessions: () => ipcRenderer.invoke('list-sessions'),
   getSession: (id) => ipcRenderer.invoke('get-session', id),
+  getConfig: () => ipcRenderer.invoke('get-config'),
+  addVault: (name, path) => ipcRenderer.invoke('add-vault', { name, path }),
+  updateVault: (originalName, name, path) => ipcRenderer.invoke('update-vault', { originalName, name, path }),
+  removeVault: (name) => ipcRenderer.invoke('remove-vault', name),
+  setActiveVault: (name) => ipcRenderer.invoke('set-active-vault', name),
+  pickFolder: () => ipcRenderer.invoke('pick-folder'),
+  updateAutoSync: (autoSync) => ipcRenderer.invoke('update-auto-sync', autoSync),
 });

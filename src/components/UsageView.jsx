@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export default function UsageView({ active }) {
+export default function UsageView({ active, vaultVersion }) {
   const [raw, setRaw] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -13,7 +13,7 @@ export default function UsageView({ active }) {
 
   useEffect(() => {
     if (active) loadUsage();
-  }, [active, loadUsage]);
+  }, [active, vaultVersion, loadUsage]);
 
   const percentMatches = raw.match(/(\d{1,3})\s*%/g);
   const p1 = percentMatches?.[0] ? parseInt(percentMatches[0]) : null;

@@ -1,3 +1,14 @@
 {
-  "vaultPath": "C:\\Obsidian\\my-knowledge-base"
+  "vaults": [
+    {
+      "name": "Default",
+      "path": "C:\\Obsidian\\my-knowledge-base"
+    }
+  ],
+  "activeVault": "Default",
+  "autoSync": {
+    "enabled": false,
+    "intervalMinutes": 60,
+    "runOnStartup": false
+  }
 }

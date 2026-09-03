@@ -22,7 +22,7 @@ function toPath(points) {
   return points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
 }
 
-export default function HomeView({ active }) {
+export default function HomeView({ active, vaultVersion }) {
   const [sessionPercent, setSessionPercent] = useState(null);
   const [weeklyPercent, setWeeklyPercent] = useState(null);
   const [promptStats, setPromptStats] = useState({});
@@ -42,7 +42,7 @@ export default function HomeView({ active }) {
       setPromptStats(await window.claudeAPI.getPromptStats());
       setGitStats(await window.claudeAPI.getGitStats());
     })();
-  }, [active]);
+  }, [active, vaultVersion]);
 
   const days = getLastSevenDays();
   const promptValues = days.map((d) => promptStats[d] || 0);

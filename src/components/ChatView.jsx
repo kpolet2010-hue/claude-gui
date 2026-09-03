@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ChatBubble from './ChatBubble.jsx';
 
-export default function ChatView({ active, messages, busy, onSend }) {
+export default function ChatView({ active, messages, busy, onSend, onStop, onNewChat }) {
   const [input, setInput] = useState('');
   const outputRef = useRef(null);
 
@@ -22,11 +22,19 @@ export default function ChatView({ active, messages, busy, onSend }) {
           <div id="greeting">Chat</div>
           <div id="greeting-sub">Was steht heute an?</div>
         </div>
+        <button
+          className="preset-btn"
+          style={{ width: 'auto', padding: '10px 16px' }}
+          onClick={onNewChat}
+          disabled={busy}
+        >
+          Neuer Chat
+        </button>
       </div>
 
       <div id="output" ref={outputRef}>
-        {messages.map((msg, i) => (
-          <ChatBubble key={i} role={msg.role} text={msg.text} />
+        {messages.map((msg) => (
+          <ChatBubble key={msg.id} role={msg.role} text={msg.text} />
         ))}
       </div>
 
@@ -41,7 +49,11 @@ export default function ChatView({ active, messages, busy, onSend }) {
             if (e.key === 'Enter') handleSend();
           }}
         />
-        <button id="send" onClick={handleSend} disabled={busy}>Senden</button>
+        {busy ? (
+          <button id="stop" className="danger-btn" onClick={onStop}>Stopp</button>
+        ) : (
+          <button id="send" onClick={handleSend}>Senden</button>
+        )}
       </div>
     </div>
   );
