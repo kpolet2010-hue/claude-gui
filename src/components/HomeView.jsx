@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useT } from '../i18n.jsx';
 
 function getLastSevenDays() {
   const days = [];
@@ -23,6 +24,7 @@ function toPath(points) {
 }
 
 export default function HomeView({ active, vaultVersion }) {
+  const t = useT();
   const [sessionPercent, setSessionPercent] = useState(null);
   const [weeklyPercent, setWeeklyPercent] = useState(null);
   const [promptStats, setPromptStats] = useState({});
@@ -65,31 +67,31 @@ export default function HomeView({ active, vaultVersion }) {
     <div id="home-view" className="view" style={{ display: active ? 'flex' : 'none' }}>
       <div id="topbar">
         <div>
-          <div id="greeting">Hey Kiano</div>
-          <div id="greeting-sub">Willkommen zurück in deinem Brain</div>
+          <div id="greeting">{t('home.greeting')}</div>
+          <div id="greeting-sub">{t('home.greetingSub')}</div>
         </div>
       </div>
 
       <div id="home-stats">
         <div className="stat-card">
-          <div className="stat-label">Session Usage</div>
+          <div className="stat-label">{t('home.sessionUsage')}</div>
           <div className="stat-value">{sessionPercent !== null ? `${sessionPercent}%` : '–'}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Wochenlimit</div>
+          <div className="stat-label">{t('home.weeklyLimit')}</div>
           <div className="stat-value">{weeklyPercent !== null ? `${weeklyPercent}%` : '–'}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Status</div>
-          <div className="stat-value"><span className="status-dot" style={{ marginRight: 8 }}></span>Bereit</div>
+          <div className="stat-label">{t('home.status')}</div>
+          <div className="stat-value"><span className="status-dot" style={{ marginRight: 8 }}></span>{t('home.ready')}</div>
         </div>
       </div>
 
       <div id="graph-card">
-        <div className="usage-card-label" style={{ marginBottom: 14 }}>Token-Verbrauch (letzte 7 Tage)</div>
+        <div className="usage-card-label" style={{ marginBottom: 14 }}>{t('home.chartTitle')}</div>
         <div className="graph-legend">
-          <span><span className="dot-purple"></span> Prompts (dein Brain-Tool)</span>
-          <span><span className="dot-green"></span> Git-Commits (Vault-Aktivität)</span>
+          <span><span className="dot-purple"></span> {t('home.legendPrompts')}</span>
+          <span><span className="dot-green"></span> {t('home.legendGit')}</span>
         </div>
         <svg id="glowChart" viewBox="0 0 600 220" preserveAspectRatio="none">
           <defs>

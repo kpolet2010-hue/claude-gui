@@ -1,5 +1,7 @@
 # Brain
 
+*[English version](README.en.md)*
+
 Electron-Desktop-GUI für die lokal installierte [`claude` CLI](https://docs.claude.com/claude-code), zugeschnitten auf die Arbeit mit einem oder mehreren persönlichen Obsidian-Vaults.
 
 ## Inhalt
@@ -29,22 +31,24 @@ Jeder Klick auf eine Aktion (z. B. "Wiki neu bauen") startet `claude` mit `cwd` 
 
 ## Features
 
-- **Chat** — Prompts an `claude` senden, Antworten werden live gestreamt und als Markdown gerendert; Folgenachrichten laufen über `claude --continue`, damit der Kontext erhalten bleibt. "Neuer Chat" startet eine frische Session, ein Stopp-Button bricht einen laufenden Prompt ab. Der Verlauf wird lokal in `history.json` gespeichert und beim nächsten Start wiederhergestellt.
+- **Chat** — mehrere parallele, benannte Chat-Threads (wie bei claude.ai) über eine eigene Liste links im Chat-Bereich; jeder Thread führt seine eigene `claude --continue`-Konversation. Antworten werden live gestreamt und als Markdown gerendert. Ein Stopp-Button bricht einen laufenden Prompt ab. Alle Threads werden lokal in `history.json` gespeichert und beim nächsten Start wiederhergestellt.
   - **Prompt-Verlauf**: Pfeil-hoch/-runter im Eingabefeld blättert durch zuletzt gesendete Prompts (pro Gerät in `localStorage`)
   - **"Nach unten springen"**-Button erscheint, wenn man beim Streamen hochgescrollt hat
   - **Copy-Button** auf jeder Chat-Bubble kopiert den Text in die Zwischenablage
   - **@-Mentions**: `@dateiname` im Prompt tippen öffnet eine Auswahl aus Vault-Dateien; der Inhalt wird beim Senden automatisch als Kontext angehängt (im Chat bleibt nur `@dateiname` sichtbar)
+  - **Bild-Anhänge**: 📎-Button oder ein Bild ins Eingabefeld ziehen; der Dateipfad wird Claude als Leseauftrag mitgegeben, der es über das Read-Tool analysiert
   - **Exportieren**-Button speichert den aktuellen Chat als Markdown-Datei
   - **Presets**: dem Prompt fest vorangestellter Kontext (z. B. Sprache/Ton), verwaltbar unter Einstellungen → Chat-Presets, auswählbar per Dropdown im Chat
+  - Begrüßungstext bei leerem Chat wechselt zufällig zwischen mehreren Varianten (pro Sitzung stabil)
 - **Aktionen** — frei konfigurierbare Prompt-Buttons in der Sidebar (Verwaltung unter Einstellungen → Aktionen), vorbelegt mit vier Beispielen: Wiki neu bauen, Neue Sources einarbeiten, Thema erweitern, Brain-Suche. Ein Prompt mit `{input}` fragt beim Klick per Dialog nach einem Wert. Nach jeder Aktion wird automatisch geprüft, ob sich im Vault etwas geändert hat (`git diff`) und als Review-Dialog angezeigt.
 - **Command Palette** (Strg+P) — Schnellsuche über alle Ansichten und Aktionen
 - **Usage** — Session- und Wochenlimit von Claude Code auf einen Blick (`/usage`)
-- **Vault** — Übersicht über vorhandene Wiki-Themen und Rohquellen, mit Datei- und Volltextsuche (Strg+K); Klick auf einen Eintrag öffnet den Dateiinhalt (Markdown gerendert bei `.md`) mit Umbenennen/Löschen. Dateien lassen sich per Drag & Drop auf die Rohquellen-Spalte direkt importieren. Weitere Tabs:
+- **Vault** — Übersicht über vorhandene Wiki-Themen und Rohquellen, mit Datei- und Volltextsuche (Strg+K); Klick auf einen Eintrag öffnet den Dateiinhalt (Markdown gerendert bei `.md`) mit Umbenennen/Löschen. Dateien lassen sich per Drag & Drop auf die Rohquellen-Spalte direkt importieren. Wiki-Themen und Rohquellen lassen sich anheften (★) — angeheftete Einträge erscheinen oben in der Liste. Weitere Tabs:
   - **Graph** — visualisiert die `[[topic-name]]`-Verlinkungen zwischen Wiki-Dateien
   - **Git-Verlauf** — Commit-Liste inkl. Diff-Ansicht pro Commit
   - **Papierkorb** — gelöschte Dateien wiederherstellen oder endgültig entfernen
-- **Verlauf** — bisherige Claude-Code-Sessions im aktiven Vault durchstöbern, inkl. Volltextsuche über den Gesprächsinhalt und Export einer Session als Markdown
-- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), Design-Theme und Claude-Modell wählen, Sidebar-Aktionen und Chat-Presets verwalten, automatisches Sync konfigurieren, Einstellungen als JSON sichern/wiederherstellen, und nach Updates suchen:
+- **Verlauf** — bisherige Claude-Code-Sessions im aktiven Vault durchstöbern, inkl. Volltextsuche über den Gesprächsinhalt, Anheften wichtiger Sessions und Export einer Session als Markdown
+- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), Design-Theme, **Sprache** (Deutsch/Englisch) und Claude-Modell wählen, Sidebar-Aktionen und Chat-Presets verwalten, automatisches Sync konfigurieren, Einstellungen als JSON sichern/wiederherstellen, und nach Updates suchen:
   - beim App-Start automatisch "Neue Sources" ausführen
   - und/oder in einem festen Intervall (Minuten) im Hintergrund
 - **Themes** — vier Farbschemata zur Auswahl (Sunset, Midnight, Forest, Light), gespeichert in `config.json` und beim nächsten Start automatisch wieder aktiv
@@ -107,6 +111,7 @@ Baut das Frontend und packt die App via `electron-builder` zu einer Windows-Inst
 - **React (JSX)** — komplettes UI in `src/` (`App.jsx` + `src/components/`), gebaut mit **Vite**
 - **cross-spawn** — startet `claude`/`git` ohne Shell-Interpolation (verhindert Command-Injection über den Prompt-Text)
 - **react-markdown** — Rendering von Claude-Antworten und Wiki-Dateien
+- Eigenes, leichtgewichtiges i18n (React Context in `src/i18n.jsx`) für Deutsch/Englisch — keine externe Bibliothek
 - Kein TypeScript — reines JSX
 
 ## `config.json`-Referenz
@@ -131,7 +136,9 @@ Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweis
   ],
   "chatPresets": [
     { "id": "...", "label": "Englisch, knapp", "systemPrompt": "Reply in English, be concise." }
-  ]
+  ],
+  "language": "de",
+  "pins": { "wiki": [], "sources": [], "sessions": [] }
 }
 ```
 
@@ -145,6 +152,8 @@ Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweis
 | `autoSync.runOnStartup` | Automatisches "Neue Sources" beim App-Start (einmalig) |
 | `customActions` | Sidebar-Buttons; `prompt` darf `{input}` enthalten für eine Dialog-Abfrage beim Klick |
 | `chatPresets` | Im Chat wählbare Kontext-Vorlagen; `systemPrompt` wird jedem gesendeten Prompt vorangestellt |
+| `language` | `de` \| `en` — steuert die komplette App-Oberfläche |
+| `pins` | Angeheftete Wiki-/Source-Dateinamen bzw. Session-IDs, pro Kategorie als Array |
 
 ## Troubleshooting
 
@@ -167,3 +176,5 @@ Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweis
 - Beim Drag & Drop im Vault werden Dateien per `webUtils.getPathForFile()` aufgelöst (nicht mehr über das ältere `File.path`, das neuere Electron-Versionen aus Sicherheitsgründen entfernt haben).
 - **"Diff-Vorschau" ist ein Review danach, keine Vorschau davor**: Nach einer Sidebar-Aktion zeigt die App automatisch `git diff` der noch nicht committeten Änderungen im Vault (falls der Vault ein Git-Repo ist). Ein echter Dry-Run vor der Ausführung ist mit `claude -p` nicht möglich, da die CLI keinen entsprechenden Modus anbietet — im Zweifel per `git checkout` manuell zurückrollen.
 - Gelöschte Vault-Dateien landen in `.trash/wiki/` bzw. `.trash/raw-sources/` statt endgültig gelöscht zu werden (wiederherstellbar über den "Papierkorb"-Tab). In einem Git-Repo taucht das als normale Dateiänderung auf — falls unerwünscht, `.trash/` zur `.gitignore` **des Vaults** (nicht dieses Repos) hinzufügen.
+- **Mehrsprachigkeit** deckt die komplette App-Oberfläche ab (Einstellungen → Sprache). Nicht übersetzt werden die vier vorbelegten Sidebar-Aktionen und ihre Prompt-Texte selbst — das sind deine eigenen, editierbaren Inhalte, keine feste UI.
+- **Bild-Anhänge im Chat** funktionieren, indem der Dateipfad an Claude weitergereicht wird, das ihn über sein eingebautes Read-Tool liest und analysiert (dokumentierte Fähigkeit von Claude Code) — es wird kein separates Bild-Upload-Flag der CLI verwendet, da `claude -p` keines anbietet.

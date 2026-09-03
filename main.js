@@ -46,6 +46,8 @@ function defaultConfig() {
     model: '',
     customActions: DEFAULT_ACTIONS,
     chatPresets: [],
+    language: 'de',
+    pins: { wiki: [], sources: [], sessions: [] },
   };
 }
 
@@ -68,6 +70,8 @@ function loadConfig() {
       model: raw.model || '',
       customActions: raw.customActions || DEFAULT_ACTIONS,
       chatPresets: raw.chatPresets || [],
+      language: raw.language || 'de',
+      pins: raw.pins || { wiki: [], sources: [], sessions: [] },
     };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(migrated, null, 2));
     return migrated;
@@ -81,6 +85,8 @@ function loadConfig() {
     model: raw.model || '',
     customActions: raw.customActions && raw.customActions.length ? raw.customActions : DEFAULT_ACTIONS,
     chatPresets: raw.chatPresets || [],
+    language: raw.language || 'de',
+    pins: raw.pins || { wiki: [], sources: [], sessions: [] },
   };
 }
 
@@ -197,7 +203,7 @@ function withModel(args) {
 
 function spawnClaude(args, cwd, { onStdout, onStderr } = {}) {
   return new Promise((resolve) => {
-    const proc = crossSpawn('claude', args, { cwd });
+    const proc = crossSpawn('claude', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
     currentProc = proc;
     let output = '';
 
@@ -701,6 +707,31 @@ ipcMain.handle('set-theme', async (event, theme) => {
   configState.theme = theme;
   saveConfig();
   return configState;
+});
+
+ipcMain.handle('set-language', async (event, language) => {
+  configState.language = language;
+  saveConfig();
+  return configState;
+});
+
+ipcMain.handle('toggle-pin', async (event, { category, id }) => {
+  if (!configState.pins) configState.pins = { wiki: [], sources: [], sessions: [] };
+  const list = configState.pins[category] || (configState.pins[category] = []);
+  const idx = list.indexOf(id);
+  if (idx === -1) list.push(id);
+  else list.splice(idx, 1);
+  saveConfig();
+  return configState.pins;
+});
+
+ipcMain.handle('pick-image', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }],
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+  return result.filePaths[0];
 });
 
 ipcMain.handle('set-model', async (event, model) => {

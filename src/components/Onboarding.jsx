@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useT } from '../i18n.jsx';
 
 export default function Onboarding({ vaultName, onComplete }) {
+  const t = useT();
   const [vaultPath, setVaultPath] = useState('');
 
   async function browse() {
@@ -18,20 +20,21 @@ export default function Onboarding({ vaultName, onComplete }) {
     <div className="onboarding-overlay">
       <div className="onboarding-card">
         <div id="logo" style={{ marginBottom: 4 }}><span className="logo-mark"></span><span>Brain</span></div>
-        <h1>Willkommen</h1>
+        <h1>{t('onboarding.title')}</h1>
         <p>
-          Wähle deinen Obsidian-Vault-Ordner, um loszulegen. Er sollte (oder wird) die Unterordner{' '}
-          <code>wiki/</code> und <code>raw-sources/</code> enthalten.
+          {t('onboarding.description').split(/(wiki\/|raw-sources\/)/).map((part, i) =>
+            part === 'wiki/' || part === 'raw-sources/' ? <code key={i}>{part}</code> : part
+          )}
         </p>
         <div className="settings-vault-row">
           <input
             className="settings-input settings-input-path"
-            placeholder="Pfad zu deinem Vault"
+            placeholder={t('onboarding.pathPlaceholder')}
             value={vaultPath}
             onChange={(e) => setVaultPath(e.target.value)}
           />
           <button className="preset-btn" style={{ width: 'auto' }} onClick={browse}>
-            Durchsuchen
+            {t('settings.browse')}
           </button>
         </div>
         <button
@@ -40,7 +43,7 @@ export default function Onboarding({ vaultName, onComplete }) {
           onClick={finish}
           disabled={!vaultPath.trim()}
         >
-          Loslegen
+          {t('onboarding.start')}
         </button>
       </div>
     </div>

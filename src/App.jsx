@@ -9,11 +9,23 @@ import SettingsView from './components/SettingsView.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
 import Modal from './components/Modal.jsx';
+import { useT } from './i18n.jsx';
+
+function deriveTitle(messages) {
+  const first = messages.find((m) => m.role === 'user');
+  return first ? first.text.slice(0, 40) : 'New Chat';
+}
+
+function newThread() {
+  return { id: crypto.randomUUID(), title: null, messages: [] };
+}
 
 export default function App() {
+  const t = useT();
   const [view, setView] = useState('home');
   const [busy, setBusy] = useState(false);
-  const [messages, setMessages] = useState([]);
+  const [threads, setThreads] = useState(() => [newThread()]);
+  const [activeThreadId, setActiveThreadId] = useState(() => threads[0]?.id);
   const [vaultVersion, setVaultVersion] = useState(0);
   const [actionsVersion, setActionsVersion] = useState(0);
   const [presetsVersion, setPresetsVersion] = useState(0);
@@ -23,15 +35,40 @@ export default function App() {
   const [activeVaultName, setActiveVaultName] = useState('Default');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [vaultDiff, setVaultDiff] = useState(null);
+  const streamingThreadIdRef = useRef(null);
   const streamingAssistantIdRef = useRef(null);
   const streamingErrorIdRef = useRef(null);
-  const hasActiveSessionRef = useRef(false);
+  const activeSessionRef = useRef(new Map());
+  const activeThreadIdRef = useRef(activeThreadId);
+  const busyRef = useRef(busy);
+  const tRef = useRef(t);
   const historyLoadedRef = useRef(false);
 
   useEffect(() => {
+    activeThreadIdRef.current = activeThreadId;
+  }, [activeThreadId]);
+
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
+  useEffect(() => {
     (async () => {
-      const history = await window.claudeAPI.loadHistory();
-      if (history && history.length) setMessages(history);
+      const raw = await window.claudeAPI.loadHistory();
+      if (Array.isArray(raw) && raw.length) {
+        // Legacy single-thread format: wrap the flat message list into one thread.
+        const id = crypto.randomUUID();
+        setThreads([{ id, title: deriveTitle(raw), messages: raw }]);
+        setActiveThreadId(id);
+      } else if (raw && Array.isArray(raw.threads) && raw.threads.length) {
+        setThreads(raw.threads);
+        const validId = raw.threads.some((th) => th.id === raw.activeThreadId);
+        setActiveThreadId(validId ? raw.activeThreadId : raw.threads[0].id);
+      }
       historyLoadedRef.current = true;
     })();
 
@@ -46,8 +83,8 @@ export default function App() {
 
   useEffect(() => {
     if (!historyLoadedRef.current) return;
-    window.claudeAPI.saveHistory(messages);
-  }, [messages]);
+    window.claudeAPI.saveHistory({ threads, activeThreadId });
+  }, [threads, activeThreadId]);
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -56,7 +93,7 @@ export default function App() {
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         setView('chat');
-        newChat();
+        if (!busyRef.current) startNewChat();
       } else if (e.key === 'k' || e.key === 'K') {
         e.preventDefault();
         setView('vault');
@@ -70,59 +107,79 @@ export default function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  function updateThreadMessages(threadId, updater) {
+    setThreads((prev) => prev.map((th) => (th.id === threadId ? { ...th, messages: updater(th.messages) } : th)));
+  }
+
   useEffect(() => {
     window.claudeAPI.onStream((data) => {
-      setMessages((prev) => {
+      const threadId = streamingThreadIdRef.current;
+      if (!threadId) return;
+      updateThreadMessages(threadId, (messages) => {
         if (streamingAssistantIdRef.current === null) {
           const id = crypto.randomUUID();
           streamingAssistantIdRef.current = id;
-          return [...prev, { id, role: 'assistant', text: data }];
+          return [...messages, { id, role: 'assistant', text: data }];
         }
-        return prev.map((msg) =>
-          msg.id === streamingAssistantIdRef.current ? { ...msg, text: msg.text + data } : msg
-        );
+        return messages.map((msg) => (msg.id === streamingAssistantIdRef.current ? { ...msg, text: msg.text + data } : msg));
       });
     });
 
     window.claudeAPI.onStreamError((data) => {
-      setMessages((prev) => {
+      const threadId = streamingThreadIdRef.current;
+      if (!threadId) return;
+      updateThreadMessages(threadId, (messages) => {
         if (streamingErrorIdRef.current === null) {
           const id = crypto.randomUUID();
           streamingErrorIdRef.current = id;
-          return [...prev, { id, role: 'error', text: data }];
+          return [...messages, { id, role: 'error', text: data }];
         }
-        return prev.map((msg) =>
-          msg.id === streamingErrorIdRef.current ? { ...msg, text: msg.text + data } : msg
-        );
+        return messages.map((msg) => (msg.id === streamingErrorIdRef.current ? { ...msg, text: msg.text + data } : msg));
       });
     });
 
     window.claudeAPI.onAutoSyncStart(() => {
+      const threadId = activeThreadIdRef.current;
+      streamingThreadIdRef.current = threadId;
       streamingAssistantIdRef.current = null;
       streamingErrorIdRef.current = null;
-      setMessages((prev) => [
-        ...prev,
-        { id: crypto.randomUUID(), role: 'user', text: '🔄 Automatisches Sync ("Neue Sources")' },
+      updateThreadMessages(threadId, (messages) => [
+        ...messages,
+        { id: crypto.randomUUID(), role: 'user', text: tRef.current('chat.autoSyncLabel') },
       ]);
       setBusy(true);
     });
 
     window.claudeAPI.onAutoSyncEnd(() => {
       setBusy(false);
+      streamingThreadIdRef.current = null;
       streamingAssistantIdRef.current = null;
       streamingErrorIdRef.current = null;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function runPrompt(prompt, displayText = prompt, options = {}) {
-    const continueConversation = hasActiveSessionRef.current;
-    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', text: displayText }]);
+    const threadId = activeThreadId;
+    const continueConversation = activeSessionRef.current.get(threadId) || false;
+    const userMsg = { id: crypto.randomUUID(), role: 'user', text: displayText };
+
+    setThreads((prev) =>
+      prev.map((th) => {
+        if (th.id !== threadId) return th;
+        const title = th.title || deriveTitle([userMsg]);
+        return { ...th, title, messages: [...th.messages, userMsg] };
+      })
+    );
+
+    streamingThreadIdRef.current = threadId;
     streamingAssistantIdRef.current = null;
     streamingErrorIdRef.current = null;
     setBusy(true);
     await window.claudeAPI.runClaude(prompt, continueConversation);
-    hasActiveSessionRef.current = true;
+    activeSessionRef.current.set(threadId, true);
     setBusy(false);
+    streamingThreadIdRef.current = null;
     streamingAssistantIdRef.current = null;
     streamingErrorIdRef.current = null;
 
@@ -136,9 +193,27 @@ export default function App() {
     await window.claudeAPI.stopClaude();
   }
 
-  function newChat() {
-    setMessages([]);
-    hasActiveSessionRef.current = false;
+  function startNewChat() {
+    const th = newThread();
+    setThreads((prev) => [th, ...prev]);
+    setActiveThreadId(th.id);
+  }
+
+  function switchThread(id) {
+    if (busy) return;
+    setActiveThreadId(id);
+  }
+
+  function deleteThread(id) {
+    const filtered = threads.filter((th) => th.id !== id);
+    const finalThreads = filtered.length ? filtered : [newThread()];
+    setThreads(finalThreads);
+    activeSessionRef.current.delete(id);
+    if (id === activeThreadId) setActiveThreadId(finalThreads[0].id);
+  }
+
+  function renameThread(id, title) {
+    setThreads((prev) => prev.map((th) => (th.id === id ? { ...th, title } : th)));
   }
 
   function onVaultChanged() {
@@ -167,6 +242,8 @@ export default function App() {
     );
   }
 
+  const activeThread = threads.find((th) => th.id === activeThreadId) || threads[0];
+
   return (
     <div id="app">
       <Sidebar view={view} setView={setView} busy={busy} runPrompt={runPrompt} actionsVersion={actionsVersion} />
@@ -174,11 +251,16 @@ export default function App() {
         <HomeView active={view === 'home'} vaultVersion={vaultVersion} />
         <ChatView
           active={view === 'chat'}
-          messages={messages}
+          threads={threads}
+          activeThreadId={activeThread.id}
+          messages={activeThread.messages}
           busy={busy}
           onSend={runPrompt}
           onStop={stopPrompt}
-          onNewChat={newChat}
+          onNewChat={startNewChat}
+          onSwitchThread={switchThread}
+          onDeleteThread={deleteThread}
+          onRenameThread={renameThread}
           vaultVersion={vaultVersion}
           presetsVersion={presetsVersion}
         />
@@ -199,11 +281,11 @@ export default function App() {
       </main>
 
       {paletteOpen && (
-        <CommandPalette onClose={() => setPaletteOpen(false)} setView={setView} newChat={newChat} runPrompt={runPrompt} />
+        <CommandPalette onClose={() => setPaletteOpen(false)} setView={setView} newChat={startNewChat} runPrompt={runPrompt} />
       )}
 
       {vaultDiff && (
-        <Modal title="Änderungen im Vault (git diff)" onClose={() => setVaultDiff(null)}>
+        <Modal title={t('diffModal.title')} onClose={() => setVaultDiff(null)}>
           <pre className="modal-plain">{vaultDiff}</pre>
         </Modal>
       )}

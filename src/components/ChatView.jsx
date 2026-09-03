@@ -1,24 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import ChatBubble from './ChatBubble.jsx';
 import { useToast } from './ToastContext.jsx';
+import { useT } from '../i18n.jsx';
 
 const HISTORY_KEY = 'brain-prompt-history';
 const MENTION_REGEX = /@([\w.-]+)/g;
-
-const GREETINGS = [
-  { greeting: 'Hallo, Kiano', sub: 'Womit fangen wir heute an?' },
-  { greeting: 'Was steht heute an, Kiano?', sub: 'Ich bin bereit.' },
-  { greeting: 'Hey Kiano', sub: 'Woran arbeiten wir?' },
-  { greeting: 'Willkommen zurück, Kiano', sub: 'Was schaffen wir heute?' },
-  { greeting: 'Schön dich zu sehen, Kiano', sub: 'Wo fangen wir an?' },
-  { greeting: 'Hi Kiano', sub: 'Erzähl mir, was ansteht.' },
-  { greeting: 'Da bist du ja, Kiano', sub: 'Was gibt es zu tun?' },
-  { greeting: 'Guten Tag, Kiano', sub: 'Wie kann ich helfen?' },
-];
-
-function pickGreeting() {
-  return GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
-}
+const GREETING_COUNT = 8;
 
 function loadPromptHistory() {
   try {
@@ -36,14 +23,30 @@ function savePromptHistory(history) {
   }
 }
 
-export default function ChatView({ active, messages, busy, onSend, onStop, onNewChat, vaultVersion, presetsVersion }) {
+export default function ChatView({
+  active,
+  threads,
+  activeThreadId,
+  messages,
+  busy,
+  onSend,
+  onStop,
+  onNewChat,
+  onSwitchThread,
+  onDeleteThread,
+  onRenameThread,
+  vaultVersion,
+  presetsVersion,
+}) {
+  const t = useT();
   const [input, setInput] = useState('');
   const [showJumpButton, setShowJumpButton] = useState(false);
   const [mentionOptions, setMentionOptions] = useState([]);
   const [vaultFiles, setVaultFiles] = useState([]);
   const [presets, setPresets] = useState([]);
   const [presetId, setPresetId] = useState('');
-  const [greeting] = useState(pickGreeting);
+  const [attachment, setAttachment] = useState(null);
+  const [greetingIndex] = useState(() => Math.floor(Math.random() * GREETING_COUNT));
   const outputRef = useRef(null);
   const inputRef = useRef(null);
   const isAtBottomRef = useRef(true);
@@ -143,30 +146,54 @@ export default function ChatView({ active, messages, busy, onSend, onStop, onNew
       const file = resolveMentionFile(name);
       if (!file) continue;
       const content = await window.claudeAPI.getVaultFile(file.type, file.name);
-      if (content) blocks.push(`--- Kontext aus @${name} ---\n${content}`);
+      if (content) blocks.push(`${t('chat.mentionContext', { name })}\n${content}`);
     }
     if (!blocks.length) return text;
     return `${text}\n\n${blocks.join('\n\n')}`;
   }
 
+  async function pickAttachment() {
+    const filePath = await window.claudeAPI.pickImage();
+    if (filePath) setAttachment({ name: filePath.split(/[\\/]/).pop(), path: filePath });
+  }
+
+  function handleAttachmentDrop(e) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    try {
+      const filePath = window.claudeAPI.getPathForFile(file);
+      if (filePath) setAttachment({ name: file.name, path: filePath });
+    } catch {
+      // ignore files without a resolvable filesystem path
+    }
+  }
+
   async function handleSend() {
     if (!input.trim()) return;
-    const displayText = input;
+    let displayText = input;
     let augmented = await buildAugmentedPrompt(input);
+
     const preset = presets.find((p) => p.id === presetId);
     if (preset && preset.systemPrompt) {
       augmented = `${preset.systemPrompt}\n\n${augmented}`;
     }
 
+    if (attachment) {
+      augmented = `${augmented}\n\n${t('chat.imageAttachmentNote', { path: attachment.path })}`;
+      displayText = `${displayText}\n\n📎 ${attachment.name}`;
+    }
+
     const history = promptHistoryRef.current;
-    if (history[history.length - 1] !== displayText) {
-      history.push(displayText);
+    if (history[history.length - 1] !== input) {
+      history.push(input);
       savePromptHistory(history);
     }
     historyIndexRef.current = -1;
 
     onSend(augmented, displayText);
     setInput('');
+    setAttachment(null);
     setMentionOptions([]);
   }
 
@@ -194,88 +221,124 @@ export default function ChatView({ active, messages, busy, onSend, onStop, onNew
 
   async function handleExport() {
     const markdown = messages
-      .map((m) => `### ${m.role === 'user' ? 'Du' : m.role === 'error' ? 'Fehler' : 'Claude'}\n\n${m.text}`)
+      .map((m) => `### ${m.role === 'user' ? t('chat.role.user') : m.role === 'error' ? t('chat.role.error') : t('chat.role.assistant')}\n\n${m.text}`)
       .join('\n\n---\n\n');
     const saved = await window.claudeAPI.exportChat(markdown);
-    if (saved) showToast('Chat exportiert.', 'success');
+    if (saved) showToast(t('chat.exportDone'), 'success');
+  }
+
+  function renameThreadPrompt(thread) {
+    const newTitle = window.prompt(t('chat.threads.renamePrompt'), thread.title || '');
+    if (!newTitle) return;
+    onRenameThread(thread.id, newTitle);
   }
 
   return (
     <div id="chat-view" className="view" style={{ display: active ? 'flex' : 'none' }}>
       <div id="topbar">
         <div>
-          <div id="greeting">Chat</div>
-          <div id="greeting-sub">Was steht heute an?</div>
+          <div id="greeting">{t('chat.title')}</div>
+          <div id="greeting-sub">{t('chat.subtitle')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {presets.length > 0 && (
             <select className="settings-input" value={presetId} onChange={(e) => setPresetId(e.target.value)}>
-              <option value="">Kein Preset</option>
+              <option value="">{t('chat.noPreset')}</option>
               {presets.map((p) => (
                 <option key={p.id} value={p.id}>{p.label}</option>
               ))}
             </select>
           )}
           <button className="preset-btn" style={{ width: 'auto', padding: '10px 16px' }} onClick={handleExport}>
-            Exportieren
-          </button>
-          <button
-            className="preset-btn"
-            style={{ width: 'auto', padding: '10px 16px' }}
-            onClick={onNewChat}
-            disabled={busy}
-          >
-            Neuer Chat
+            {t('chat.export')}
           </button>
         </div>
       </div>
 
-      <div className="chat-output-wrap">
-        <div id="output" ref={outputRef} onScroll={handleScroll}>
-          {messages.length === 0 ? (
-            <div className="chat-empty-state">
-              <div className="chat-empty-greeting">{greeting.greeting}</div>
-              <div className="chat-empty-sub">{greeting.sub}</div>
-            </div>
-          ) : (
-            messages.map((msg) => <ChatBubble key={msg.id} role={msg.role} text={msg.text} />)
-          )}
-        </div>
-        {showJumpButton && (
-          <button className="jump-to-bottom-btn" onClick={jumpToBottom}>
-            ↓ Neue Nachrichten
+      <div id="chat-layout">
+        <div id="chat-threads-list">
+          <button className="preset-btn" style={{ width: '100%', marginBottom: 8 }} onClick={onNewChat} disabled={busy}>
+            {t('chat.threads.new')}
           </button>
-        )}
-      </div>
-
-      <div id="inputRow" style={{ position: 'relative' }}>
-        {mentionOptions.length > 0 && (
-          <div className="mention-dropdown">
-            {mentionOptions.map((file) => (
+          {threads.map((thread) => (
+            <div key={thread.id} className={`thread-row ${thread.id === activeThreadId ? 'active' : ''}`}>
               <button
-                key={`${file.type}-${file.name}`}
-                className="mention-option"
-                onClick={() => selectMention(file)}
+                className="thread-row-select"
+                disabled={busy}
+                onClick={() => onSwitchThread(thread.id)}
+                onDoubleClick={() => renameThreadPrompt(thread)}
               >
-                {file.type === 'wiki' ? file.name.replace(/\.md$/, '') : file.name}
+                {thread.title || t('chat.threads.untitled')}
               </button>
-            ))}
+              <button
+                className="thread-row-delete"
+                disabled={busy}
+                onClick={() => onDeleteThread(thread.id)}
+                title={t('chat.threads.delete')}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div id="chat-main">
+          <div className="chat-output-wrap">
+            <div id="output" ref={outputRef} onScroll={handleScroll}>
+              {messages.length === 0 ? (
+                <div className="chat-empty-state">
+                  <div className="chat-empty-greeting">{t(`chat.greeting${greetingIndex + 1}`)}</div>
+                  <div className="chat-empty-sub">{t(`chat.greeting${greetingIndex + 1}Sub`)}</div>
+                </div>
+              ) : (
+                messages.map((msg) => <ChatBubble key={msg.id} role={msg.role} text={msg.text} />)
+              )}
+            </div>
+            {showJumpButton && (
+              <button className="jump-to-bottom-btn" onClick={jumpToBottom}>
+                {t('chat.jumpToBottom')}
+              </button>
+            )}
           </div>
-        )}
-        <input
-          id="prompt"
-          ref={inputRef}
-          type="text"
-          placeholder="Frag Claude... (@ für Vault-Dateien)"
-          value={input}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-        />
-        {busy ? (
-          <button id="stop" className="danger-btn" onClick={onStop}>Stopp</button>
-        ) : (
-          <button id="send" onClick={handleSend}>Senden</button>
-        )}
+
+          {attachment && (
+            <div className="attachment-chip">
+              📎 {attachment.name}
+              <button onClick={() => setAttachment(null)} title={t('chat.removeAttachment')}>✕</button>
+            </div>
+          )}
+
+          <div id="inputRow" style={{ position: 'relative' }} onDragOver={(e) => e.preventDefault()} onDrop={handleAttachmentDrop}>
+            {mentionOptions.length > 0 && (
+              <div className="mention-dropdown">
+                {mentionOptions.map((file) => (
+                  <button
+                    key={`${file.type}-${file.name}`}
+                    className="mention-option"
+                    onClick={() => selectMention(file)}
+                  >
+                    {file.type === 'wiki' ? file.name.replace(/\.md$/, '') : file.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button className="attach-btn" onClick={pickAttachment} title={t('chat.attachImage')}>📎</button>
+            <input
+              id="prompt"
+              ref={inputRef}
+              type="text"
+              placeholder={t('chat.placeholder')}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+            />
+            {busy ? (
+              <button id="stop" className="danger-btn" onClick={onStop}>{t('chat.stop')}</button>
+            ) : (
+              <button id="send" onClick={handleSend}>{t('chat.send')}</button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

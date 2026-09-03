@@ -1,17 +1,18 @@
 import ReactMarkdown from 'react-markdown';
 import { useToast } from './ToastContext.jsx';
-
-const labels = { user: 'Du', assistant: 'Claude', error: 'Fehler' };
+import { useT } from '../i18n.jsx';
 
 export default function ChatBubble({ role, text }) {
   const showToast = useToast();
+  const t = useT();
+  const labels = { user: t('chat.role.user'), assistant: t('chat.role.assistant'), error: t('chat.role.error') };
 
   async function copyText() {
     try {
       await navigator.clipboard.writeText(text);
-      showToast('In Zwischenablage kopiert.', 'success');
+      showToast(t('chat.copySuccess'), 'success');
     } catch {
-      showToast('Kopieren fehlgeschlagen.', 'error');
+      showToast(t('chat.copyError'), 'error');
     }
   }
 
@@ -20,7 +21,7 @@ export default function ChatBubble({ role, text }) {
       <div className={`bubble ${role}`}>
         <div className="bubble-label-row">
           <div className="bubble-label">{labels[role] || role}</div>
-          <button className="bubble-copy-btn" onClick={copyText} title="Kopieren">⧉</button>
+          <button className="bubble-copy-btn" onClick={copyText} title={t('chat.copy')}>⧉</button>
         </div>
         {role === 'user' ? (
           <div className="bubble-text">{text}</div>

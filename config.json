@@ -35,5 +35,11 @@
       "prompt": "Search /wiki/ and /raw-sources/ for information relevant to: {input}. If you find a clear answer there, use it and cite which file it came from. Only if nothing relevant is found, search the web for an answer. Keep the answer concise."
     }
   ],
-  "chatPresets": []
+  "chatPresets": [],
+  "language": "en",
+  "pins": {
+    "wiki": [],
+    "sources": [],
+    "sessions": []
+  }
 }

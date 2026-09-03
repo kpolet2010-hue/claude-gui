@@ -336,6 +336,111 @@ body::after {
 }
 
 /* Chat */
+#chat-layout {
+  flex: 1;
+  display: flex;
+  gap: 14px;
+  min-height: 0;
+}
+
+#chat-threads-list {
+  width: 200px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 2px;
+}
+
+.thread-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  flex-shrink: 0;
+}
+.thread-row.active {
+  border-color: var(--border-strong);
+  background: var(--accent-soft);
+}
+.thread-row-select {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 7px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.thread-row-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.thread-row-delete {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+.thread-row-delete:hover {
+  color: #e28b8b;
+}
+
+#chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  align-self: flex-start;
+}
+.attachment-chip button {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.attach-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 0 12px;
+}
+.attach-btn:hover {
+  background: var(--surface-hover);
+}
+
 .chat-output-wrap {
   position: relative;
   flex: 1;
@@ -1218,25 +1323,49 @@ body::after {
 
 .vault-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   width: 100%;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.vault-row:last-child {
+  border-bottom: none;
+}
+
+.vault-row-pin {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+.vault-row.pinned .vault-row-pin {
+  color: var(--warning);
+}
+.vault-row-pin:hover {
+  color: var(--warning);
+}
+
+.vault-row-open {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
   padding: 9px 4px;
   border: none;
-  border-bottom: 1px solid var(--border);
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
 }
-.vault-row:hover {
+.vault-row-open:hover {
   background: var(--surface-hover);
-}
-
-.vault-row:last-child {
-  border-bottom: none;
 }
 
 .vault-row-name {
@@ -1279,14 +1408,13 @@ body::after {
 }
 
 .session-row {
-  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 2px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 10px 12px;
-  cursor: pointer;
-  font-family: inherit;
-  color: var(--text-primary);
+  padding: 4px;
   transition: background 0.12s ease, border-color 0.12s ease;
   flex-shrink: 0;
 }
@@ -1298,6 +1426,34 @@ body::after {
 .session-row.active {
   border-color: var(--border-strong);
   background: var(--accent-soft);
+}
+
+.session-row-pin {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+.session-row.pinned .session-row-pin {
+  color: var(--warning);
+}
+.session-row-pin:hover {
+  color: var(--warning);
+}
+
+.session-row-open {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-primary);
 }
 
 .session-row-title {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useToast } from './ToastContext.jsx';
+import { useT, useLanguage } from '../i18n.jsx';
 
 const emptyConfig = {
   vaults: [],
@@ -25,7 +26,14 @@ const MODELS = [
   { id: 'haiku', label: 'Haiku' },
 ];
 
+const LANGUAGES = [
+  { id: 'de', label: 'Deutsch' },
+  { id: 'en', label: 'English' },
+];
+
 export default function SettingsView({ active, onVaultChanged, onActionsChanged, onPresetsChanged }) {
+  const t = useT();
+  const { language, setLanguage } = useLanguage();
   const [config, setConfig] = useState(emptyConfig);
   const [edits, setEdits] = useState({});
   const [newVault, setNewVault] = useState({ name: '', path: '' });
@@ -61,7 +69,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
       );
       setConfig(updated);
       setEdits((prev) => ({ ...prev, [vault.name]: undefined }));
-      showToast('Vault gespeichert.', 'success');
+      showToast(t('settings.vaultSaved'), 'success');
       onVaultChanged();
     } catch (err) {
       showToast(err.message, 'error');
@@ -95,7 +103,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
       const updated = await window.claudeAPI.addVault(newVault.name.trim(), newVault.path.trim());
       setConfig(updated);
       setNewVault({ name: '', path: '' });
-      showToast('Vault hinzugefügt.', 'success');
+      showToast(t('settings.vaultAdded'), 'success');
       onVaultChanged();
     } catch (err) {
       showToast(err.message, 'error');
@@ -135,7 +143,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
       );
       setConfig(updated);
       setActionEdits((prev) => ({ ...prev, [action.id]: undefined }));
-      showToast('Aktion gespeichert.', 'success');
+      showToast(t('settings.actionSaved'), 'success');
       onActionsChanged();
     } catch (err) {
       showToast(err.message, 'error');
@@ -143,7 +151,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
   }
 
   async function deleteAction(id) {
-    if (!window.confirm('Diese Aktion wirklich löschen?')) return;
+    if (!window.confirm(t('settings.actionDeleteConfirm'))) return;
     const updated = await window.claudeAPI.removeAction(id);
     setConfig(updated);
     onActionsChanged();
@@ -154,7 +162,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
     const updated = await window.claudeAPI.addAction(newAction.label.trim(), newAction.prompt.trim());
     setConfig(updated);
     setNewAction({ label: '', prompt: '' });
-    showToast('Aktion hinzugefügt.', 'success');
+    showToast(t('settings.actionAdded'), 'success');
     onActionsChanged();
   }
 
@@ -175,7 +183,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
       );
       setConfig(updated);
       setPresetEdits((prev) => ({ ...prev, [preset.id]: undefined }));
-      showToast('Preset gespeichert.', 'success');
+      showToast(t('settings.presetSaved'), 'success');
       onPresetsChanged();
     } catch (err) {
       showToast(err.message, 'error');
@@ -183,7 +191,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
   }
 
   async function deletePreset(id) {
-    if (!window.confirm('Dieses Preset wirklich löschen?')) return;
+    if (!window.confirm(t('settings.presetDeleteConfirm'))) return;
     const updated = await window.claudeAPI.removePreset(id);
     setConfig(updated);
     onPresetsChanged();
@@ -194,7 +202,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
     const updated = await window.claudeAPI.addPreset(newPreset.label.trim(), newPreset.systemPrompt.trim());
     setConfig(updated);
     setNewPreset({ label: '', systemPrompt: '' });
-    showToast('Preset hinzugefügt.', 'success');
+    showToast(t('settings.presetAdded'), 'success');
     onPresetsChanged();
   }
 
@@ -206,7 +214,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
 
   async function handleExportConfig() {
     const saved = await window.claudeAPI.exportConfig();
-    if (saved) showToast('Einstellungen exportiert.', 'success');
+    if (saved) showToast(t('settings.configExported'), 'success');
   }
 
   async function handleImportConfig() {
@@ -215,7 +223,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
       if (!updated) return;
       setConfig(updated);
       document.documentElement.setAttribute('data-theme', updated.theme || 'sunset');
-      showToast('Einstellungen importiert.', 'success');
+      showToast(t('settings.configImported'), 'success');
       onVaultChanged();
       onActionsChanged();
       onPresetsChanged();
@@ -228,13 +236,13 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
     <div id="settings-view" className="view" style={{ display: active ? 'flex' : 'none' }}>
       <div id="topbar">
         <div>
-          <div id="greeting">Einstellungen</div>
-          <div id="greeting-sub">Vaults, Aktionen und Automatisierung konfigurieren</div>
+          <div id="greeting">{t('settings.title')}</div>
+          <div id="greeting-sub">{t('settings.subtitle')}</div>
         </div>
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-label">Vaults</div>
+        <div className="settings-section-label">{t('settings.vaults')}</div>
 
         <div className="settings-vault-list">
           {config.vaults.map((vault) => (
@@ -254,16 +262,16 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
                 style={{ width: 'auto' }}
                 onClick={() => browseForPath((p) => editField(vault.name, 'path', p))}
               >
-                Durchsuchen
+                {t('settings.browse')}
               </button>
               <button className="preset-btn" style={{ width: 'auto' }} onClick={() => saveVault(vault)}>
-                Speichern
+                {t('settings.save')}
               </button>
               {config.activeVault === vault.name ? (
-                <span className="settings-active-badge">Aktiv</span>
+                <span className="settings-active-badge">{t('settings.active')}</span>
               ) : (
                 <button className="preset-btn" style={{ width: 'auto' }} onClick={() => activateVault(vault.name)}>
-                  Aktivieren
+                  {t('settings.activate')}
                 </button>
               )}
               <button
@@ -271,7 +279,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
                 disabled={config.vaults.length <= 1}
                 onClick={() => deleteVault(vault.name)}
               >
-                Löschen
+                {t('settings.delete')}
               </button>
             </div>
           ))}
@@ -280,13 +288,13 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
         <div className="settings-vault-row settings-vault-new">
           <input
             className="settings-input"
-            placeholder="Name"
+            placeholder={t('settings.namePlaceholder')}
             value={newVault.name}
             onChange={(e) => setNewVault((v) => ({ ...v, name: e.target.value }))}
           />
           <input
             className="settings-input settings-input-path"
-            placeholder="Pfad"
+            placeholder={t('settings.pathPlaceholder')}
             value={newVault.path}
             onChange={(e) => setNewVault((v) => ({ ...v, path: e.target.value }))}
           />
@@ -295,16 +303,16 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
             style={{ width: 'auto' }}
             onClick={() => browseForPath((p) => setNewVault((v) => ({ ...v, path: p })))}
           >
-            Durchsuchen
+            {t('settings.browse')}
           </button>
           <button className="preset-btn" style={{ width: 'auto' }} onClick={addVault}>
-            + Vault hinzufügen
+            {t('settings.addVault')}
           </button>
         </div>
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-label">Design</div>
+        <div className="settings-section-label">{t('settings.design')}</div>
         <div className="settings-theme-list">
           {THEMES.map((theme) => (
             <button
@@ -320,7 +328,22 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-label">Modell</div>
+        <div className="settings-section-label">{t('settings.language')}</div>
+        <div className="settings-theme-list">
+          {LANGUAGES.map((lang) => (
+            <button
+              key={lang.id}
+              className={`settings-theme-swatch ${language === lang.id ? 'active' : ''}`}
+              onClick={() => setLanguage(lang.id)}
+            >
+              {lang.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-label">{t('settings.model')}</div>
         <div className="settings-theme-list">
           {MODELS.map((model) => (
             <button
@@ -335,9 +358,9 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-label">Aktionen (Sidebar-Buttons)</div>
+        <div className="settings-section-label">{t('settings.actionsTitle')}</div>
         <div className="settings-hint" style={{ marginBottom: 12 }}>
-          <code>{'{input}'}</code> im Prompt fragt beim Klick per Dialog nach einem Wert (wie bei "Thema erweitern").
+          <code>{'{input}'}</code> {t('settings.actionsHint').replace('{input}', '').trim()}
         </div>
 
         {config.customActions.map((action) => (
@@ -354,9 +377,9 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
             />
             <div className="settings-action-buttons">
               <button className="preset-btn" style={{ width: 'auto' }} onClick={() => saveAction(action)}>
-                Speichern
+                {t('settings.save')}
               </button>
-              <button className="danger-btn" onClick={() => deleteAction(action.id)}>Löschen</button>
+              <button className="danger-btn" onClick={() => deleteAction(action.id)}>{t('settings.delete')}</button>
             </div>
           </div>
         ))}
@@ -364,28 +387,25 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
         <div className="settings-action-row">
           <input
             className="settings-input"
-            placeholder="Name des Buttons"
+            placeholder={t('settings.actionButtonName')}
             value={newAction.label}
             onChange={(e) => setNewAction((a) => ({ ...a, label: e.target.value }))}
           />
           <textarea
             className="settings-textarea"
-            placeholder="Prompt-Text (optional mit {input})"
+            placeholder={t('settings.actionPromptPlaceholder')}
             value={newAction.prompt}
             onChange={(e) => setNewAction((a) => ({ ...a, prompt: e.target.value }))}
           />
           <button className="preset-btn" style={{ width: 'auto' }} onClick={addAction}>
-            + Aktion hinzufügen
+            {t('settings.addAction')}
           </button>
         </div>
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-label">Chat-Presets</div>
-        <div className="settings-hint" style={{ marginBottom: 12 }}>
-          Ein Preset stellt dem eigentlichen Prompt einen festen Kontext voran (z. B. eine Sprache oder einen Ton) —
-          auswählbar im Chat-Ansicht-Dropdown.
-        </div>
+        <div className="settings-section-label">{t('settings.presetsTitle')}</div>
+        <div className="settings-hint" style={{ marginBottom: 12 }}>{t('settings.presetsHint')}</div>
 
         {config.chatPresets.map((preset) => (
           <div className="settings-action-row" key={preset.id}>
@@ -401,9 +421,9 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
             />
             <div className="settings-action-buttons">
               <button className="preset-btn" style={{ width: 'auto' }} onClick={() => savePreset(preset)}>
-                Speichern
+                {t('settings.save')}
               </button>
-              <button className="danger-btn" onClick={() => deletePreset(preset.id)}>Löschen</button>
+              <button className="danger-btn" onClick={() => deletePreset(preset.id)}>{t('settings.delete')}</button>
             </div>
           </div>
         ))}
@@ -411,24 +431,24 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
         <div className="settings-action-row">
           <input
             className="settings-input"
-            placeholder="Name des Presets"
+            placeholder={t('settings.presetName')}
             value={newPreset.label}
             onChange={(e) => setNewPreset((p) => ({ ...p, label: e.target.value }))}
           />
           <textarea
             className="settings-textarea"
-            placeholder="Kontext-Text, der jedem Prompt vorangestellt wird"
+            placeholder={t('settings.presetPromptPlaceholder')}
             value={newPreset.systemPrompt}
             onChange={(e) => setNewPreset((p) => ({ ...p, systemPrompt: e.target.value }))}
           />
           <button className="preset-btn" style={{ width: 'auto' }} onClick={addPreset}>
-            + Preset hinzufügen
+            {t('settings.addPreset')}
           </button>
         </div>
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-label">Automatisches Sync ("Neue Sources")</div>
+        <div className="settings-section-label">{t('settings.autoSyncTitle')}</div>
 
         <label className="settings-checkbox-row">
           <input
@@ -436,7 +456,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
             checked={config.autoSync.runOnStartup}
             onChange={(e) => saveAutoSync({ runOnStartup: e.target.checked })}
           />
-          Beim App-Start automatisch ausführen
+          {t('settings.autoSyncStartup')}
         </label>
 
         <label className="settings-checkbox-row">
@@ -445,7 +465,7 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
             checked={config.autoSync.enabled}
             onChange={(e) => saveAutoSync({ enabled: e.target.checked })}
           />
-          Regelmäßig automatisch ausführen, alle
+          {t('settings.autoSyncInterval')}
           <input
             type="number"
             min="1"
@@ -453,42 +473,36 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
             value={config.autoSync.intervalMinutes}
             onChange={(e) => saveAutoSync({ intervalMinutes: parseInt(e.target.value) || 1 })}
           />
-          Minuten
+          {t('settings.autoSyncMinutes')}
         </label>
 
-        <div className="settings-hint">
-          Läuft im Hintergrund auf dem aktiven Vault (auch bei minimiertem Fenster/Tray). Änderungen an "Beim Start"
-          gelten ab dem nächsten App-Start.
-        </div>
+        <div className="settings-hint">{t('settings.autoSyncHint')}</div>
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-label">Sichern &amp; Wiederherstellen</div>
-        <div className="settings-hint" style={{ marginBottom: 12 }}>
-          Exportiert/importiert Vaults, Aktionen, Presets und alle anderen Einstellungen als JSON-Datei — praktisch
-          für einen zweiten Rechner.
-        </div>
+        <div className="settings-section-label">{t('settings.backupTitle')}</div>
+        <div className="settings-hint" style={{ marginBottom: 12 }}>{t('settings.backupHint')}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="preset-btn" style={{ width: 'auto' }} onClick={handleExportConfig}>
-            Einstellungen exportieren
+            {t('settings.exportConfig')}
           </button>
           <button className="preset-btn" style={{ width: 'auto' }} onClick={handleImportConfig}>
-            Einstellungen importieren
+            {t('settings.importConfig')}
           </button>
         </div>
       </div>
 
       <div className="settings-section">
-        <div className="settings-section-label">Über</div>
-        <div className="settings-hint" style={{ marginBottom: 12 }}>Version {appVersion || '–'}</div>
+        <div className="settings-section-label">{t('settings.about')}</div>
+        <div className="settings-hint" style={{ marginBottom: 12 }}>{t('settings.version', { version: appVersion || '–' })}</div>
         <button className="preset-btn" style={{ width: 'auto' }} onClick={handleCheckUpdate} disabled={checkingUpdate}>
-          {checkingUpdate ? 'Prüfe...' : 'Nach Updates suchen'}
+          {checkingUpdate ? t('settings.checkingUpdate') : t('settings.checkUpdate')}
         </button>
         {updateCheck && (
           <div className="settings-hint" style={{ marginTop: 10 }}>
             {updateCheck.hasUpdate
-              ? `Neue Version verfügbar: ${updateCheck.latestVersion} — ${updateCheck.url}`
-              : 'Du hast die aktuellste Version.'}
+              ? t('settings.updateAvailable', { version: updateCheck.latestVersion, url: updateCheck.url })
+              : t('settings.upToDate')}
           </div>
         )}
       </div>

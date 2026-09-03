@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-
-const NAV_COMMANDS = [
-  { id: 'nav-home', label: 'Gehe zu: Home', view: 'home' },
-  { id: 'nav-chat', label: 'Gehe zu: Chat', view: 'chat' },
-  { id: 'nav-usage', label: 'Gehe zu: Usage', view: 'usage' },
-  { id: 'nav-vault', label: 'Gehe zu: Vault', view: 'vault' },
-  { id: 'nav-sessions', label: 'Gehe zu: Verlauf', view: 'sessions' },
-  { id: 'nav-settings', label: 'Gehe zu: Einstellungen', view: 'settings' },
-];
+import { useT } from '../i18n.jsx';
 
 export default function CommandPalette({ onClose, setView, newChat, runPrompt }) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [actions, setActions] = useState([]);
   const inputRef = useRef(null);
+
+  const NAV_COMMANDS = [
+    { id: 'nav-home', view: 'home', label: t('nav.home') },
+    { id: 'nav-chat', view: 'chat', label: t('nav.chat') },
+    { id: 'nav-usage', view: 'usage', label: t('nav.usage') },
+    { id: 'nav-vault', view: 'vault', label: t('nav.vault') },
+    { id: 'nav-sessions', view: 'sessions', label: t('nav.sessions') },
+    { id: 'nav-settings', view: 'settings', label: t('nav.settings') },
+  ];
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -24,7 +26,7 @@ export default function CommandPalette({ onClose, setView, newChat, runPrompt })
 
   function runAction(action) {
     if (action.prompt.includes('{input}')) {
-      const input = window.prompt(`Eingabe für "${action.label}"`);
+      const input = window.prompt(t('sidebar.action.inputPrompt', { label: action.label }));
       if (!input) return;
       runPrompt(action.prompt.replaceAll('{input}', input));
     } else {
@@ -33,9 +35,9 @@ export default function CommandPalette({ onClose, setView, newChat, runPrompt })
   }
 
   const commands = [
-    ...NAV_COMMANDS.map((c) => ({ id: c.id, label: c.label, run: () => setView(c.view) })),
-    { id: 'new-chat', label: 'Neuer Chat', run: () => { setView('chat'); newChat(); } },
-    ...actions.map((a) => ({ id: `action-${a.id}`, label: `Aktion: ${a.label}`, run: () => runAction(a) })),
+    ...NAV_COMMANDS.map((c) => ({ id: c.id, label: t('palette.goto', { view: c.label }), run: () => setView(c.view) })),
+    { id: 'new-chat', label: t('palette.newChat'), run: () => { setView('chat'); newChat(); } },
+    ...actions.map((a) => ({ id: `action-${a.id}`, label: t('palette.action', { label: a.label }), run: () => runAction(a) })),
   ];
 
   const filtered = query.trim()
@@ -58,7 +60,7 @@ export default function CommandPalette({ onClose, setView, newChat, runPrompt })
         <input
           ref={inputRef}
           className="command-palette-input"
-          placeholder="Befehl suchen..."
+          placeholder={t('palette.placeholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -69,7 +71,7 @@ export default function CommandPalette({ onClose, setView, newChat, runPrompt })
               {cmd.label}
             </button>
           ))}
-          {!filtered.length && <div className="command-palette-empty">Keine Treffer.</div>}
+          {!filtered.length && <div className="command-palette-empty">{t('palette.noMatches')}</div>}
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useT } from '../i18n.jsx';
 
 const WIDTH = 700;
 const HEIGHT = 440;
@@ -58,6 +59,7 @@ function layoutGraph(nodes, edges) {
 }
 
 export default function WikiGraph({ active, vaultVersion, onOpenNode }) {
+  const t = useT();
   const [graph, setGraph] = useState({ nodes: [], edges: [] });
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export default function WikiGraph({ active, vaultVersion, onOpenNode }) {
   const positions = useMemo(() => layoutGraph(graph.nodes, graph.edges), [graph]);
 
   if (!graph.nodes.length) {
-    return <div className="vault-empty">Keine Wiki-Dateien für den Graph gefunden.</div>;
+    return <div className="vault-empty">{t('vault.noWikiGraph')}</div>;
   }
 
   return (
