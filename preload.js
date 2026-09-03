@@ -1,6 +1,7 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('claudeAPI', {
+  getPathForFile: (file) => webUtils.getPathForFile(file),
   runClaude: (prompt, continueConversation) => ipcRenderer.invoke('run-claude', prompt, continueConversation),
   stopClaude: () => ipcRenderer.invoke('stop-claude'),
   onStream: (callback) => ipcRenderer.on('claude-stream', (event, data) => callback(data)),
@@ -12,8 +13,14 @@ contextBridge.exposeInMainWorld('claudeAPI', {
   getUsage: () => ipcRenderer.invoke('get-usage'),
   getPromptStats: () => ipcRenderer.invoke('get-prompt-stats'),
   getGitStats: () => ipcRenderer.invoke('get-git-stats'),
+  getGitLog: () => ipcRenderer.invoke('get-git-log'),
+  getGitDiff: (hash) => ipcRenderer.invoke('get-git-diff', hash),
   getVault: () => ipcRenderer.invoke('get-vault'),
   getVaultFile: (type, name) => ipcRenderer.invoke('get-vault-file', { type, name }),
+  renameVaultFile: (type, oldName, newName) => ipcRenderer.invoke('rename-vault-file', { type, oldName, newName }),
+  deleteVaultFile: (type, name) => ipcRenderer.invoke('delete-vault-file', { type, name }),
+  importFile: (sourcePath) => ipcRenderer.invoke('import-file', sourcePath),
+  exportChat: (content) => ipcRenderer.invoke('export-chat', content),
   listSessions: () => ipcRenderer.invoke('list-sessions'),
   getSession: (id) => ipcRenderer.invoke('get-session', id),
   getConfig: () => ipcRenderer.invoke('get-config'),
@@ -24,4 +31,8 @@ contextBridge.exposeInMainWorld('claudeAPI', {
   pickFolder: () => ipcRenderer.invoke('pick-folder'),
   updateAutoSync: (autoSync) => ipcRenderer.invoke('update-auto-sync', autoSync),
   setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),
+  setModel: (model) => ipcRenderer.invoke('set-model', model),
+  addAction: (label, prompt) => ipcRenderer.invoke('add-action', { label, prompt }),
+  updateAction: (id, label, prompt) => ipcRenderer.invoke('update-action', { id, label, prompt }),
+  removeAction: (id) => ipcRenderer.invoke('remove-action', id),
 });

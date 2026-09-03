@@ -6,12 +6,18 @@ import UsageView from './components/UsageView.jsx';
 import VaultView from './components/VaultView.jsx';
 import SessionsView from './components/SessionsView.jsx';
 import SettingsView from './components/SettingsView.jsx';
+import Onboarding from './components/Onboarding.jsx';
 
 export default function App() {
   const [view, setView] = useState('home');
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState([]);
   const [vaultVersion, setVaultVersion] = useState(0);
+  const [actionsVersion, setActionsVersion] = useState(0);
+  const [vaultSearchTrigger, setVaultSearchTrigger] = useState(0);
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
+  const [activeVaultName, setActiveVaultName] = useState('Default');
   const streamingAssistantIdRef = useRef(null);
   const streamingErrorIdRef = useRef(null);
   const hasActiveSessionRef = useRef(false);
@@ -27,6 +33,9 @@ export default function App() {
     (async () => {
       const config = await window.claudeAPI.getConfig();
       document.documentElement.setAttribute('data-theme', config.theme || 'sunset');
+      setNeedsSetup(!!config.needsSetup);
+      setActiveVaultName(config.activeVault || 'Default');
+      setCheckingSetup(false);
     })();
   }, []);
 
@@ -34,6 +43,24 @@ export default function App() {
     if (!historyLoadedRef.current) return;
     window.claudeAPI.saveHistory(messages);
   }, [messages]);
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        setView('chat');
+        newChat();
+      } else if (e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        setView('vault');
+        setVaultSearchTrigger((v) => v + 1);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     window.claudeAPI.onStream((data) => {
@@ -79,9 +106,9 @@ export default function App() {
     });
   }, []);
 
-  async function runPrompt(prompt) {
+  async function runPrompt(prompt, displayText = prompt) {
     const continueConversation = hasActiveSessionRef.current;
-    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', text: prompt }]);
+    setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', text: displayText }]);
     streamingAssistantIdRef.current = null;
     streamingErrorIdRef.current = null;
     setBusy(true);
@@ -105,9 +132,27 @@ export default function App() {
     setVaultVersion((v) => v + 1);
   }
 
+  function onActionsChanged() {
+    setActionsVersion((v) => v + 1);
+  }
+
+  if (checkingSetup) return null;
+
+  if (needsSetup) {
+    return (
+      <Onboarding
+        vaultName={activeVaultName}
+        onComplete={() => {
+          setNeedsSetup(false);
+          onVaultChanged();
+        }}
+      />
+    );
+  }
+
   return (
     <div id="app">
-      <Sidebar view={view} setView={setView} busy={busy} runPrompt={runPrompt} />
+      <Sidebar view={view} setView={setView} busy={busy} runPrompt={runPrompt} actionsVersion={actionsVersion} />
       <main id="main">
         <HomeView active={view === 'home'} vaultVersion={vaultVersion} />
         <ChatView
@@ -117,11 +162,21 @@ export default function App() {
           onSend={runPrompt}
           onStop={stopPrompt}
           onNewChat={newChat}
+          vaultVersion={vaultVersion}
         />
         <UsageView active={view === 'usage'} vaultVersion={vaultVersion} />
-        <VaultView active={view === 'vault'} vaultVersion={vaultVersion} />
+        <VaultView
+          active={view === 'vault'}
+          vaultVersion={vaultVersion}
+          onVaultChanged={onVaultChanged}
+          searchTrigger={vaultSearchTrigger}
+        />
         <SessionsView active={view === 'sessions'} vaultVersion={vaultVersion} />
-        <SettingsView active={view === 'settings'} onVaultChanged={onVaultChanged} />
+        <SettingsView
+          active={view === 'settings'}
+          onVaultChanged={onVaultChanged}
+          onActionsChanged={onActionsChanged}
+        />
       </main>
     </div>
   );

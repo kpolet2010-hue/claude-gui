@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, Notification } = require('electron');
 const crossSpawn = require('cross-spawn');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -7,9 +8,34 @@ const os = require('os');
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 const HISTORY_PATH = path.join(__dirname, 'history.json');
 const STATS_PATH = path.join(__dirname, 'stats.json');
+const ICON_PATH = path.join(__dirname, 'icon.png');
 
-const NEW_SOURCES_PROMPT =
-  'Read all files in /raw-sources/. Compare against the existing wiki in /wiki/ and log.md to identify which files or content are new or changed since the last run. For each new or changed piece: summarize it and integrate it into the appropriate existing topic file in /wiki/, or create a new topic file if none fits. Update index.md if new topics were added. Link related topics using [[topic-name]] format. Append a log entry to log.md for each new source processed — do not overwrite existing log entries.';
+const DEFAULT_ACTIONS = [
+  {
+    id: 'wiki-rebuild',
+    label: 'Wiki neu bauen',
+    prompt:
+      'Read all files in /raw-sources/. Compile a wiki in /wiki/ following the rules in CLAUDE.md. Create an index.md first, then one .md file per major topic. Link related topics using [[topic-name]] format. Summarize every source. Log everything to log.md.',
+  },
+  {
+    id: 'new-sources',
+    label: 'Neue Sources',
+    prompt:
+      'Read all files in /raw-sources/. Compare against the existing wiki in /wiki/ and log.md to identify which files or content are new or changed since the last run. For each new or changed piece: summarize it and integrate it into the appropriate existing topic file in /wiki/, or create a new topic file if none fits. Update index.md if new topics were added. Link related topics using [[topic-name]] format. Append a log entry to log.md for each new source processed — do not overwrite existing log entries.',
+  },
+  {
+    id: 'expand-topic',
+    label: 'Thema erweitern',
+    prompt:
+      'Research {input}. Find good sources yourself rather than asking me. Create or expand topic files in /wiki/ covering this, written clearly with code examples where relevant. Link related topics using [[topic-name]] format. Update index.md if new topics are added. Log what was added to log.md. Keep this efficient — avoid excessive tool calls or token usage.',
+  },
+  {
+    id: 'brain-search',
+    label: 'Brain-Suche',
+    prompt:
+      'Search /wiki/ and /raw-sources/ for information relevant to: {input}. If you find a clear answer there, use it and cite which file it came from. Only if nothing relevant is found, search the web for an answer. Keep the answer concise.',
+  },
+];
 
 function defaultConfig() {
   return {
@@ -17,6 +43,8 @@ function defaultConfig() {
     activeVault: 'Default',
     autoSync: { enabled: false, intervalMinutes: 60, runOnStartup: false },
     theme: 'sunset',
+    model: '',
+    customActions: DEFAULT_ACTIONS,
   };
 }
 
@@ -36,6 +64,8 @@ function loadConfig() {
       activeVault: 'Default',
       autoSync: { ...defaultConfig().autoSync, ...(raw.autoSync || {}) },
       theme: raw.theme || defaultConfig().theme,
+      model: raw.model || '',
+      customActions: raw.customActions || DEFAULT_ACTIONS,
     };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(migrated, null, 2));
     return migrated;
@@ -46,6 +76,8 @@ function loadConfig() {
     activeVault: raw.activeVault || raw.vaults?.[0]?.name || 'Default',
     autoSync: { ...defaultConfig().autoSync, ...(raw.autoSync || {}) },
     theme: raw.theme || defaultConfig().theme,
+    model: raw.model || '',
+    customActions: raw.customActions && raw.customActions.length ? raw.customActions : DEFAULT_ACTIONS,
   };
 }
 
@@ -75,11 +107,13 @@ ipcMain.handle('load-history', async () => {
 });
 
 let mainWindow = null;
+let tray = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 750,
+    icon: ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -88,13 +122,51 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
 
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
   if (configState.autoSync.runOnStartup) {
     mainWindow.webContents.once('did-finish-load', () => runAutoSync());
   }
 }
 
+function createTray() {
+  tray = new Tray(ICON_PATH);
+  tray.setToolTip('Brain');
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: 'Öffnen',
+        click: () => {
+          mainWindow.show();
+          mainWindow.focus();
+        },
+      },
+      { label: 'Neue Sources jetzt ausführen', click: () => runAutoSync() },
+      { type: 'separator' },
+      {
+        label: 'Beenden',
+        click: () => {
+          app.isQuitting = true;
+          app.quit();
+        },
+      },
+    ])
+  );
+  tray.on('click', () => {
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
+
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   createWindow();
+  createTray();
   scheduleAutoSync();
 });
 
@@ -102,8 +174,23 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
+function notifyIfUnfocused(title, body) {
+  if (mainWindow && !mainWindow.isFocused() && Notification.isSupported()) {
+    const note = new Notification({ title, body, icon: ICON_PATH });
+    note.on('click', () => {
+      mainWindow.show();
+      mainWindow.focus();
+    });
+    note.show();
+  }
+}
+
 // Tracks the currently running `claude` child process so it can be cancelled.
 let currentProc = null;
+
+function withModel(args) {
+  return configState.model ? [...args, '--model', configState.model] : args;
+}
 
 function spawnClaude(args, cwd, { onStdout, onStderr } = {}) {
   return new Promise((resolve) => {
@@ -137,6 +224,17 @@ function spawnClaude(args, cwd, { onStdout, onStderr } = {}) {
   });
 }
 
+function runGit(args, cwd) {
+  return new Promise((resolve) => {
+    const proc = crossSpawn('git', args, { cwd });
+    let output = '';
+    proc.stdout.on('data', (d) => (output += d.toString()));
+    proc.stderr.on('data', () => {});
+    proc.on('close', () => resolve(output));
+    proc.on('error', () => resolve(''));
+  });
+}
+
 function logUsageEvent() {
   let stats = {};
   if (fs.existsSync(STATS_PATH)) {
@@ -150,13 +248,16 @@ function logUsageEvent() {
 ipcMain.handle('run-claude', async (event, prompt, continueConversation) => {
   logUsageEvent();
   const vault = getActiveVault();
-  const args = ['-p', prompt, '--allowedTools', 'Bash,Write,Read,Edit'];
+  let args = ['-p', prompt, '--allowedTools', 'Bash,Write,Read,Edit'];
   if (continueConversation) args.push('--continue');
+  args = withModel(args);
 
-  return spawnClaude(args, vault.path, {
+  const result = await spawnClaude(args, vault.path, {
     onStdout: (text) => event.sender.send('claude-stream', text),
     onStderr: (text) => event.sender.send('claude-stream-error', text),
   });
+  notifyIfUnfocused('Brain', 'Claude ist mit der Antwort fertig.');
+  return result;
 });
 
 ipcMain.handle('stop-claude', async () => {
@@ -316,43 +417,84 @@ ipcMain.handle('get-vault', async () => {
   };
 });
 
-ipcMain.handle('get-vault-file', async (event, { type, name }) => {
+function vaultFilePath(type, name) {
   const vaultPath = getActiveVault().path;
   const subfolder = type === 'wiki' ? 'wiki' : 'raw-sources';
   const safeName = path.basename(String(name || ''));
-  const full = path.join(vaultPath, subfolder, safeName);
+  return path.join(vaultPath, subfolder, safeName);
+}
+
+ipcMain.handle('get-vault-file', async (event, { type, name }) => {
+  const full = vaultFilePath(type, name);
   if (!fs.existsSync(full)) return null;
   return fs.readFileSync(full, 'utf-8');
 });
 
-ipcMain.handle('get-git-stats', async () => {
-  return new Promise((resolve) => {
-    const proc = crossSpawn(
-      'git',
-      ['log', '--since=7 days ago', '--date=short', '--pretty=format:%ad'],
-      { cwd: getActiveVault().path }
-    );
-
-    let output = '';
-    proc.stdout.on('data', (data) => (output += data.toString()));
-    proc.stderr.on('data', () => {});
-
-    proc.on('close', () => {
-      const counts = {};
-      output
-        .split('\n')
-        .filter(Boolean)
-        .forEach((date) => {
-          counts[date] = (counts[date] || 0) + 1;
-        });
-      resolve(counts);
-    });
-
-    proc.on('error', () => resolve({}));
-  });
+ipcMain.handle('rename-vault-file', async (event, { type, oldName, newName }) => {
+  const oldFull = vaultFilePath(type, oldName);
+  const newFull = vaultFilePath(type, newName);
+  if (!fs.existsSync(oldFull)) throw new Error('Datei nicht gefunden.');
+  if (fs.existsSync(newFull)) throw new Error('Es existiert bereits eine Datei mit diesem Namen.');
+  fs.renameSync(oldFull, newFull);
 });
 
-ipcMain.handle('get-config', async () => configState);
+ipcMain.handle('delete-vault-file', async (event, { type, name }) => {
+  const full = vaultFilePath(type, name);
+  if (fs.existsSync(full)) fs.unlinkSync(full);
+});
+
+ipcMain.handle('import-file', async (event, sourcePath) => {
+  const destDir = path.join(getActiveVault().path, 'raw-sources');
+  if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+  const destPath = path.join(destDir, path.basename(sourcePath));
+  fs.copyFileSync(sourcePath, destPath);
+});
+
+ipcMain.handle('export-chat', async (event, content) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: `chat-${new Date().toISOString().slice(0, 10)}.md`,
+    filters: [{ name: 'Markdown', extensions: ['md'] }],
+  });
+  if (result.canceled || !result.filePath) return false;
+  fs.writeFileSync(result.filePath, content, 'utf-8');
+  return true;
+});
+
+ipcMain.handle('get-git-stats', async () => {
+  const output = await runGit(
+    ['log', '--since=7 days ago', '--date=short', '--pretty=format:%ad'],
+    getActiveVault().path
+  );
+  const counts = {};
+  output
+    .split('\n')
+    .filter(Boolean)
+    .forEach((date) => {
+      counts[date] = (counts[date] || 0) + 1;
+    });
+  return counts;
+});
+
+ipcMain.handle('get-git-log', async () => {
+  const output = await runGit(['log', '-30', '--pretty=format:%h|%ad|%s', '--date=short'], getActiveVault().path);
+  return output
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, date, ...rest] = line.split('|');
+      return { hash, date, subject: rest.join('|') };
+    });
+});
+
+ipcMain.handle('get-git-diff', async (event, hash) => {
+  if (!/^[0-9a-f]{4,40}$/i.test(String(hash || ''))) return '';
+  return runGit(['show', hash], getActiveVault().path);
+});
+
+ipcMain.handle('get-config', async () => ({
+  ...configState,
+  needsSetup: !fs.existsSync(getActiveVault().path),
+}));
 
 ipcMain.handle('add-vault', async (event, { name, path: vaultPath }) => {
   if (!name || !vaultPath) throw new Error('Name und Pfad sind erforderlich.');
@@ -393,17 +535,53 @@ ipcMain.handle('pick-folder', async () => {
   return result.filePaths[0];
 });
 
+ipcMain.handle('set-theme', async (event, theme) => {
+  configState.theme = theme;
+  saveConfig();
+  return configState;
+});
+
+ipcMain.handle('set-model', async (event, model) => {
+  configState.model = model;
+  saveConfig();
+  return configState;
+});
+
+ipcMain.handle('add-action', async (event, { label, prompt }) => {
+  configState.customActions.push({ id: crypto.randomUUID(), label, prompt });
+  saveConfig();
+  return configState;
+});
+
+ipcMain.handle('update-action', async (event, { id, label, prompt }) => {
+  const action = configState.customActions.find((a) => a.id === id);
+  if (!action) throw new Error('Aktion nicht gefunden.');
+  action.label = label;
+  action.prompt = prompt;
+  saveConfig();
+  return configState;
+});
+
+ipcMain.handle('remove-action', async (event, id) => {
+  configState.customActions = configState.customActions.filter((a) => a.id !== id);
+  saveConfig();
+  return configState;
+});
+
 let autoSyncInterval = null;
 
 async function runAutoSync() {
   logUsageEvent();
   const vault = getActiveVault();
   mainWindow?.webContents.send('auto-sync-start');
-  await spawnClaude(['-p', NEW_SOURCES_PROMPT, '--allowedTools', 'Bash,Write,Read,Edit'], vault.path, {
+  const newSourcesAction = configState.customActions.find((a) => a.id === 'new-sources');
+  const promptText = newSourcesAction ? newSourcesAction.prompt : DEFAULT_ACTIONS[1].prompt;
+  await spawnClaude(withModel(['-p', promptText, '--allowedTools', 'Bash,Write,Read,Edit']), vault.path, {
     onStdout: (text) => mainWindow?.webContents.send('claude-stream', text),
     onStderr: (text) => mainWindow?.webContents.send('claude-stream-error', text),
   });
   mainWindow?.webContents.send('auto-sync-end');
+  notifyIfUnfocused('Brain', 'Automatisches Sync ist fertig.');
 }
 
 function scheduleAutoSync() {
@@ -413,12 +591,6 @@ function scheduleAutoSync() {
     autoSyncInterval = setInterval(runAutoSync, intervalMinutes * 60 * 1000);
   }
 }
-
-ipcMain.handle('set-theme', async (event, theme) => {
-  configState.theme = theme;
-  saveConfig();
-  return configState;
-});
 
 ipcMain.handle('update-auto-sync', async (event, autoSync) => {
   configState.autoSync = { ...configState.autoSync, ...autoSync };

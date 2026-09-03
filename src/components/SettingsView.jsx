@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useToast } from './ToastContext.jsx';
 
 const emptyConfig = {
   vaults: [],
   activeVault: '',
   autoSync: { enabled: false, intervalMinutes: 60, runOnStartup: false },
   theme: 'sunset',
+  model: '',
+  customActions: [],
 };
 
 const THEMES = [
@@ -14,10 +17,20 @@ const THEMES = [
   { id: 'light', label: 'Light', swatch: '#c96442' },
 ];
 
-export default function SettingsView({ active, onVaultChanged }) {
+const MODELS = [
+  { id: '', label: 'Standard (CLI-Default)' },
+  { id: 'sonnet', label: 'Sonnet' },
+  { id: 'opus', label: 'Opus' },
+  { id: 'haiku', label: 'Haiku' },
+];
+
+export default function SettingsView({ active, onVaultChanged, onActionsChanged }) {
   const [config, setConfig] = useState(emptyConfig);
   const [edits, setEdits] = useState({});
   const [newVault, setNewVault] = useState({ name: '', path: '' });
+  const [actionEdits, setActionEdits] = useState({});
+  const [newAction, setNewAction] = useState({ label: '', prompt: '' });
+  const showToast = useToast();
 
   useEffect(() => {
     if (!active) return;
@@ -41,9 +54,10 @@ export default function SettingsView({ active, onVaultChanged }) {
       );
       setConfig(updated);
       setEdits((prev) => ({ ...prev, [vault.name]: undefined }));
+      showToast('Vault gespeichert.', 'success');
       onVaultChanged();
     } catch (err) {
-      window.alert(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -59,7 +73,7 @@ export default function SettingsView({ active, onVaultChanged }) {
       setConfig(updated);
       onVaultChanged();
     } catch (err) {
-      window.alert(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -74,9 +88,10 @@ export default function SettingsView({ active, onVaultChanged }) {
       const updated = await window.claudeAPI.addVault(newVault.name.trim(), newVault.path.trim());
       setConfig(updated);
       setNewVault({ name: '', path: '' });
+      showToast('Vault hinzugefügt.', 'success');
       onVaultChanged();
     } catch (err) {
-      window.alert(err.message);
+      showToast(err.message, 'error');
     }
   }
 
@@ -91,12 +106,57 @@ export default function SettingsView({ active, onVaultChanged }) {
     setConfig(updated);
   }
 
+  async function selectModel(modelId) {
+    const updated = await window.claudeAPI.setModel(modelId);
+    setConfig(updated);
+  }
+
+  function editActionField(id, field, value) {
+    setActionEdits((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  }
+
+  function actionFieldValue(action, field) {
+    return actionEdits[action.id]?.[field] ?? action[field];
+  }
+
+  async function saveAction(action) {
+    try {
+      const updated = await window.claudeAPI.updateAction(
+        action.id,
+        actionFieldValue(action, 'label'),
+        actionFieldValue(action, 'prompt')
+      );
+      setConfig(updated);
+      setActionEdits((prev) => ({ ...prev, [action.id]: undefined }));
+      showToast('Aktion gespeichert.', 'success');
+      onActionsChanged();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function deleteAction(id) {
+    if (!window.confirm('Diese Aktion wirklich löschen?')) return;
+    const updated = await window.claudeAPI.removeAction(id);
+    setConfig(updated);
+    onActionsChanged();
+  }
+
+  async function addAction() {
+    if (!newAction.label.trim() || !newAction.prompt.trim()) return;
+    const updated = await window.claudeAPI.addAction(newAction.label.trim(), newAction.prompt.trim());
+    setConfig(updated);
+    setNewAction({ label: '', prompt: '' });
+    showToast('Aktion hinzugefügt.', 'success');
+    onActionsChanged();
+  }
+
   return (
     <div id="settings-view" className="view" style={{ display: active ? 'flex' : 'none' }}>
       <div id="topbar">
         <div>
           <div id="greeting">Einstellungen</div>
-          <div id="greeting-sub">Vaults verwalten und Automatisierung konfigurieren</div>
+          <div id="greeting-sub">Vaults, Aktionen und Automatisierung konfigurieren</div>
         </div>
       </div>
 
@@ -187,6 +247,67 @@ export default function SettingsView({ active, onVaultChanged }) {
       </div>
 
       <div className="settings-section">
+        <div className="settings-section-label">Modell</div>
+        <div className="settings-theme-list">
+          {MODELS.map((model) => (
+            <button
+              key={model.id}
+              className={`settings-theme-swatch ${config.model === model.id ? 'active' : ''}`}
+              onClick={() => selectModel(model.id)}
+            >
+              {model.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-label">Aktionen (Sidebar-Buttons)</div>
+        <div className="settings-hint" style={{ marginBottom: 12 }}>
+          <code>{'{input}'}</code> im Prompt fragt beim Klick per Dialog nach einem Wert (wie bei "Thema erweitern").
+        </div>
+
+        {config.customActions.map((action) => (
+          <div className="settings-action-row" key={action.id}>
+            <input
+              className="settings-input"
+              value={actionFieldValue(action, 'label')}
+              onChange={(e) => editActionField(action.id, 'label', e.target.value)}
+            />
+            <textarea
+              className="settings-textarea"
+              value={actionFieldValue(action, 'prompt')}
+              onChange={(e) => editActionField(action.id, 'prompt', e.target.value)}
+            />
+            <div className="settings-action-buttons">
+              <button className="preset-btn" style={{ width: 'auto' }} onClick={() => saveAction(action)}>
+                Speichern
+              </button>
+              <button className="danger-btn" onClick={() => deleteAction(action.id)}>Löschen</button>
+            </div>
+          </div>
+        ))}
+
+        <div className="settings-action-row">
+          <input
+            className="settings-input"
+            placeholder="Name des Buttons"
+            value={newAction.label}
+            onChange={(e) => setNewAction((a) => ({ ...a, label: e.target.value }))}
+          />
+          <textarea
+            className="settings-textarea"
+            placeholder="Prompt-Text (optional mit {input})"
+            value={newAction.prompt}
+            onChange={(e) => setNewAction((a) => ({ ...a, prompt: e.target.value }))}
+          />
+          <button className="preset-btn" style={{ width: 'auto' }} onClick={addAction}>
+            + Aktion hinzufügen
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-section">
         <div className="settings-section-label">Automatisches Sync ("Neue Sources")</div>
 
         <label className="settings-checkbox-row">
@@ -216,7 +337,7 @@ export default function SettingsView({ active, onVaultChanged }) {
         </label>
 
         <div className="settings-hint">
-          Läuft im Hintergrund über die Sidebar-Aktion "Neue Sources" auf dem aktiven Vault. Änderungen an "Beim Start"
+          Läuft im Hintergrund auf dem aktiven Vault (auch bei minimiertem Fenster/Tray). Änderungen an "Beim Start"
           gelten ab dem nächsten App-Start.
         </div>
       </div>

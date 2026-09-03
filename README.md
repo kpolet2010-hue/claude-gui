@@ -16,18 +16,23 @@ Jeder Klick auf eine Aktion (z. B. "Wiki neu bauen") startet `claude` mit `cwd` 
 ## Features
 
 - **Chat** — Prompts an `claude` senden, Antworten werden live gestreamt und als Markdown gerendert; Folgenachrichten laufen über `claude --continue`, damit der Kontext erhalten bleibt. "Neuer Chat" startet eine frische Session, ein Stopp-Button bricht einen laufenden Prompt ab. Der Verlauf wird lokal in `history.json` gespeichert und beim nächsten Start wiederhergestellt.
-- **Aktionen** — vordefinierte Prompts, um den Vault zu pflegen:
-  - Wiki aus `/raw-sources/` neu aufbauen
-  - Nur neue/geänderte Sources einarbeiten
-  - Ein bestehendes Thema erweitern
-  - Im Vault suchen ("Brain-Suche")
+  - **Prompt-Verlauf**: Pfeil-hoch/-runter im Eingabefeld blättert durch zuletzt gesendete Prompts (pro Gerät in `localStorage`)
+  - **"Nach unten springen"**-Button erscheint, wenn man beim Streamen hochgescrollt hat
+  - **Copy-Button** auf jeder Chat-Bubble kopiert den Text in die Zwischenablage
+  - **@-Mentions**: `@dateiname` im Prompt tippen öffnet eine Auswahl aus Vault-Dateien; der Inhalt wird beim Senden automatisch als Kontext angehängt (im Chat bleibt nur `@dateiname` sichtbar)
+  - **Exportieren**-Button speichert den aktuellen Chat als Markdown-Datei
+- **Aktionen** — frei konfigurierbare Prompt-Buttons in der Sidebar (Verwaltung unter Einstellungen → Aktionen), vorbelegt mit vier Beispielen: Wiki neu bauen, Neue Sources einarbeiten, Thema erweitern, Brain-Suche. Ein Prompt mit `{input}` fragt beim Klick per Dialog nach einem Wert.
 - **Usage** — Session- und Wochenlimit von Claude Code auf einen Blick (`/usage`)
-- **Vault** — Übersicht über vorhandene Wiki-Themen und Rohquellen; Klick auf einen Eintrag öffnet den Dateiinhalt (Markdown gerendert bei `.md`)
+- **Vault** — Übersicht über vorhandene Wiki-Themen und Rohquellen, mit Suchfeld (Strg+K); Klick auf einen Eintrag öffnet den Dateiinhalt (Markdown gerendert bei `.md`) mit Umbenennen/Löschen. Dateien lassen sich per Drag & Drop auf die Rohquellen-Spalte direkt importieren. Ein zweiter Tab zeigt den Git-Verlauf des Vaults inkl. Diff-Ansicht pro Commit.
 - **Verlauf** — bisherige Claude-Code-Sessions im aktiven Vault durchstöbern
-- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), Design-Theme wählen, sowie automatisches Sync konfigurieren:
+- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), Design-Theme und Claude-Modell wählen, Sidebar-Aktionen verwalten, sowie automatisches Sync konfigurieren:
   - beim App-Start automatisch "Neue Sources" ausführen
   - und/oder in einem festen Intervall (Minuten) im Hintergrund
 - **Themes** — vier Farbschemata zur Auswahl (Sunset, Midnight, Forest, Light), gespeichert in `config.json` und beim nächsten Start automatisch wieder aktiv
+- **Tray-Icon** — die App läuft im Hintergrund weiter, wenn das Fenster geschlossen wird (siehe Hinweis unten); über das Tray-Menü lässt sich "Neue Sources" auch ohne offenes Fenster anstoßen
+- **Desktop-Benachrichtigungen** — wenn ein Prompt oder Auto-Sync fertig ist, während das Fenster nicht fokussiert ist
+- **Onboarding** — beim allerersten Start (oder wenn der aktive Vault-Ordner nicht existiert) führt ein kurzer Dialog durch die Vault-Auswahl, statt stillschweigend mit einem Platzhalterpfad zu laufen
+- **Tastenkürzel** — Strg+N (neuer Chat), Strg+K (Vault-Suche fokussieren), Esc (Modal schließen)
 
 Laufende Prompts geben stderr-Ausgaben als eigene, farblich abgesetzte Fehler-Bubbles im Chat aus, statt sie stillschweigend im Output zu verstecken.
 
@@ -36,6 +41,7 @@ Laufende Prompts geben stderr-Ausgaben als eigene, farblich abgesetzte Fehler-Bu
 - [Claude Code CLI](https://docs.claude.com/claude-code) installiert und im `PATH` (`claude` muss aus dem Terminal aufrufbar sein)
 - Node.js
 - Mindestens ein Obsidian-Vault (oder ein beliebiger Ordner) mit `wiki/` und `raw-sources/` Unterordnern
+- `git` optional, aber nötig für den Home-Graph (Commit-Aktivität) und den Git-Verlauf-Tab im Vault — ohne Git-Repo im Vault bleiben diese beiden einfach leer
 
 ## Setup
 
@@ -79,3 +85,5 @@ Baut das Frontend und packt die App via `electron-builder` zu einer Windows-Inst
 - `history.json`, `stats.json`, `dist/` (Vite-Build-Output) und `release/` (electron-builder-Output) werden lokal erzeugt und sind nicht Teil des Repos.
 - `config.json` enthält nur lokale Pfade, keine Secrets — kann bedenkenlos mitcommittet werden, sollte aber bei mehreren Nutzern des Repos ggf. individuelle Pfade überschreiben.
 - Läuft ein automatischer Sync (Intervall oder Start), während du gerade einen Chat mit `--continue` fortführst, zählt der Sync-Lauf für die Claude-CLI als "letzte Konversation". Eine danach gesendete Chat-Nachricht knüpft dann an den Sync-Kontext statt an dein eigentliches Gespräch an — in dem Fall hilft "Neuer Chat" oder kurz warten, bis der Sync durch ist.
+- **Fenster schließen beendet die App nicht mehr** — das X-Symbol minimiert nur ins Tray (Symbol im Infobereich der Taskleiste), damit Auto-Sync im Hintergrund weiterlaufen kann. Echtes Beenden geht nur über "Beenden" im Tray-Menü (Rechtsklick auf das Icon).
+- Beim Drag & Drop im Vault werden Dateien per `webUtils.getPathForFile()` aufgelöst (nicht mehr über das ältere `File.path`, das neuere Electron-Versionen aus Sicherheitsgründen entfernt haben).
