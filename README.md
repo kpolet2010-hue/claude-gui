@@ -2,6 +2,20 @@
 
 Electron-Desktop-GUI für die lokal installierte [`claude` CLI](https://docs.claude.com/claude-code), zugeschnitten auf die Arbeit mit einem oder mehreren persönlichen Obsidian-Vaults.
 
+## Inhalt
+
+- [Was ist ein "Vault"?](#was-ist-ein-vault)
+- [Features](#features)
+- [Tastenkürzel](#tastenkürzel)
+- [Voraussetzungen](#voraussetzungen)
+- [Setup](#setup)
+- [Start](#start)
+- [Installer bauen](#installer-bauen)
+- [Tech Stack](#tech-stack)
+- [`config.json`-Referenz](#configjson-referenz)
+- [Troubleshooting](#troubleshooting)
+- [Hinweise](#hinweise)
+
 ## Was ist ein "Vault"?
 
 Ein Vault ist ein persönlicher Obsidian-Ordner — die eigentliche Wissensbasis, mit der die App arbeitet. Vaults liegen komplett außerhalb dieses Repos (verwaltet in `config.json`, editierbar über die Einstellungen-Ansicht) und werden nie mit hochgeladen.
@@ -32,9 +46,19 @@ Jeder Klick auf eine Aktion (z. B. "Wiki neu bauen") startet `claude` mit `cwd` 
 - **Tray-Icon** — die App läuft im Hintergrund weiter, wenn das Fenster geschlossen wird (siehe Hinweis unten); über das Tray-Menü lässt sich "Neue Sources" auch ohne offenes Fenster anstoßen
 - **Desktop-Benachrichtigungen** — wenn ein Prompt oder Auto-Sync fertig ist, während das Fenster nicht fokussiert ist
 - **Onboarding** — beim allerersten Start (oder wenn der aktive Vault-Ordner nicht existiert) führt ein kurzer Dialog durch die Vault-Auswahl, statt stillschweigend mit einem Platzhalterpfad zu laufen
-- **Tastenkürzel** — Strg+N (neuer Chat), Strg+K (Vault-Suche fokussieren), Esc (Modal schließen)
+- **Tastenkürzel** — siehe [eigener Abschnitt](#tastenkürzel)
 
 Laufende Prompts geben stderr-Ausgaben als eigene, farblich abgesetzte Fehler-Bubbles im Chat aus, statt sie stillschweigend im Output zu verstecken.
+
+## Tastenkürzel
+
+| Kürzel | Wirkung |
+| --- | --- |
+| `Strg+N` | Neuer Chat (springt zur Chat-Ansicht und leert sie) |
+| `Strg+K` | Zur Vault-Ansicht springen und das Suchfeld fokussieren |
+| `Esc` | Offenes Modal schließen (Datei-Viewer, Git-Diff) |
+| `↑` / `↓` im Chat-Eingabefeld | Durch zuletzt gesendete Prompts blättern |
+| `Enter` im Chat-Eingabefeld | Prompt senden |
 
 ## Voraussetzungen
 
@@ -78,6 +102,50 @@ Baut das Frontend und packt die App via `electron-builder` zu einer Windows-Inst
 - **cross-spawn** — startet `claude`/`git` ohne Shell-Interpolation (verhindert Command-Injection über den Prompt-Text)
 - **react-markdown** — Rendering von Claude-Antworten und Wiki-Dateien
 - Kein TypeScript — reines JSX
+
+## `config.json`-Referenz
+
+Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweise nicht nötig (alles läuft über die Einstellungen-Ansicht), aber zum Nachschlagen:
+
+```json
+{
+  "vaults": [
+    { "name": "Default", "path": "C:\\Obsidian\\my-knowledge-base" }
+  ],
+  "activeVault": "Default",
+  "theme": "sunset",
+  "model": "",
+  "autoSync": {
+    "enabled": false,
+    "intervalMinutes": 60,
+    "runOnStartup": false
+  },
+  "customActions": [
+    { "id": "wiki-rebuild", "label": "Wiki neu bauen", "prompt": "..." }
+  ]
+}
+```
+
+| Feld | Bedeutung |
+| --- | --- |
+| `vaults` | Liste aller angelegten Vaults (`name` + `path`) |
+| `activeVault` | Name des gerade aktiven Vaults aus `vaults` |
+| `theme` | `sunset` \| `midnight` \| `forest` \| `light` |
+| `model` | Leer = CLI-Standard, sonst `sonnet` \| `opus` \| `haiku` (als `--model`-Flag an `claude` durchgereicht) |
+| `autoSync.enabled` / `.intervalMinutes` | Automatisches "Neue Sources" in festem Intervall |
+| `autoSync.runOnStartup` | Automatisches "Neue Sources" beim App-Start (einmalig) |
+| `customActions` | Sidebar-Buttons; `prompt` darf `{input}` enthalten für eine Dialog-Abfrage beim Klick |
+
+## Troubleshooting
+
+| Problem | Ursache / Lösung |
+| --- | --- |
+| Chat bleibt bei "Läuft..." hängen, keine Antwort | `claude` ist nicht im `PATH` — im normalen Terminal prüfen, ob `claude -p "hi"` funktioniert |
+| `Cannot create symbolic link` bei `npm run dist` | Windows-Entwicklermodus nicht aktiviert oder Terminal nicht als Administrator gestartet (siehe [Installer bauen](#installer-bauen)) |
+| Home-Graph / Git-Verlauf im Vault bleiben leer | Der Vault-Ordner ist kein Git-Repository, oder `git` ist nicht installiert — beides ist optional, kein Fehler |
+| Fenster verschwindet beim Klick auf X | Kein Bug — die App läuft im Tray weiter (siehe [Hinweise](#hinweise)). Rechtsklick auf das Tray-Icon → "Beenden" für echtes Schließen |
+| Onboarding-Dialog erscheint bei jedem Start erneut | Der eingetragene Vault-Pfad existiert nicht (mehr) auf der Festplatte — Ordner im Dialog neu auswählen |
+| Keine Desktop-Benachrichtigungen | Nur wenn das Fenster nicht fokussiert ist; zusätzlich müssen Windows-Benachrichtigungen für die App erlaubt sein (Einstellungen → Benachrichtigungen) |
 
 ## Hinweise
 
