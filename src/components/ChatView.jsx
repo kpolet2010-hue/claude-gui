@@ -5,6 +5,21 @@ import { useToast } from './ToastContext.jsx';
 const HISTORY_KEY = 'brain-prompt-history';
 const MENTION_REGEX = /@([\w.-]+)/g;
 
+const GREETINGS = [
+  { greeting: 'Hallo, Kiano', sub: 'Womit fangen wir heute an?' },
+  { greeting: 'Was steht heute an, Kiano?', sub: 'Ich bin bereit.' },
+  { greeting: 'Hey Kiano', sub: 'Woran arbeiten wir?' },
+  { greeting: 'Willkommen zurück, Kiano', sub: 'Was schaffen wir heute?' },
+  { greeting: 'Schön dich zu sehen, Kiano', sub: 'Wo fangen wir an?' },
+  { greeting: 'Hi Kiano', sub: 'Erzähl mir, was ansteht.' },
+  { greeting: 'Da bist du ja, Kiano', sub: 'Was gibt es zu tun?' },
+  { greeting: 'Guten Tag, Kiano', sub: 'Wie kann ich helfen?' },
+];
+
+function pickGreeting() {
+  return GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+}
+
 function loadPromptHistory() {
   try {
     return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
@@ -21,11 +36,14 @@ function savePromptHistory(history) {
   }
 }
 
-export default function ChatView({ active, messages, busy, onSend, onStop, onNewChat, vaultVersion }) {
+export default function ChatView({ active, messages, busy, onSend, onStop, onNewChat, vaultVersion, presetsVersion }) {
   const [input, setInput] = useState('');
   const [showJumpButton, setShowJumpButton] = useState(false);
   const [mentionOptions, setMentionOptions] = useState([]);
   const [vaultFiles, setVaultFiles] = useState([]);
+  const [presets, setPresets] = useState([]);
+  const [presetId, setPresetId] = useState('');
+  const [greeting] = useState(pickGreeting);
   const outputRef = useRef(null);
   const inputRef = useRef(null);
   const isAtBottomRef = useRef(true);
@@ -44,6 +62,14 @@ export default function ChatView({ active, messages, busy, onSend, onStop, onNew
       ]);
     })();
   }, [active, vaultVersion]);
+
+  useEffect(() => {
+    if (!active) return;
+    (async () => {
+      const config = await window.claudeAPI.getConfig();
+      setPresets(config.chatPresets || []);
+    })();
+  }, [active, presetsVersion]);
 
   useEffect(() => {
     if (isAtBottomRef.current && outputRef.current) {
@@ -126,7 +152,11 @@ export default function ChatView({ active, messages, busy, onSend, onStop, onNew
   async function handleSend() {
     if (!input.trim()) return;
     const displayText = input;
-    const augmented = await buildAugmentedPrompt(input);
+    let augmented = await buildAugmentedPrompt(input);
+    const preset = presets.find((p) => p.id === presetId);
+    if (preset && preset.systemPrompt) {
+      augmented = `${preset.systemPrompt}\n\n${augmented}`;
+    }
 
     const history = promptHistoryRef.current;
     if (history[history.length - 1] !== displayText) {
@@ -178,6 +208,14 @@ export default function ChatView({ active, messages, busy, onSend, onStop, onNew
           <div id="greeting-sub">Was steht heute an?</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          {presets.length > 0 && (
+            <select className="settings-input" value={presetId} onChange={(e) => setPresetId(e.target.value)}>
+              <option value="">Kein Preset</option>
+              {presets.map((p) => (
+                <option key={p.id} value={p.id}>{p.label}</option>
+              ))}
+            </select>
+          )}
           <button className="preset-btn" style={{ width: 'auto', padding: '10px 16px' }} onClick={handleExport}>
             Exportieren
           </button>
@@ -194,9 +232,14 @@ export default function ChatView({ active, messages, busy, onSend, onStop, onNew
 
       <div className="chat-output-wrap">
         <div id="output" ref={outputRef} onScroll={handleScroll}>
-          {messages.map((msg) => (
-            <ChatBubble key={msg.id} role={msg.role} text={msg.text} />
-          ))}
+          {messages.length === 0 ? (
+            <div className="chat-empty-state">
+              <div className="chat-empty-greeting">{greeting.greeting}</div>
+              <div className="chat-empty-sub">{greeting.sub}</div>
+            </div>
+          ) : (
+            messages.map((msg) => <ChatBubble key={msg.id} role={msg.role} text={msg.text} />)
+          )}
         </div>
         {showJumpButton && (
           <button className="jump-to-bottom-btn" onClick={jumpToBottom}>

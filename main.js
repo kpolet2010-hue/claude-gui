@@ -45,6 +45,7 @@ function defaultConfig() {
     theme: 'sunset',
     model: '',
     customActions: DEFAULT_ACTIONS,
+    chatPresets: [],
   };
 }
 
@@ -66,6 +67,7 @@ function loadConfig() {
       theme: raw.theme || defaultConfig().theme,
       model: raw.model || '',
       customActions: raw.customActions || DEFAULT_ACTIONS,
+      chatPresets: raw.chatPresets || [],
     };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(migrated, null, 2));
     return migrated;
@@ -78,6 +80,7 @@ function loadConfig() {
     theme: raw.theme || defaultConfig().theme,
     model: raw.model || '',
     customActions: raw.customActions && raw.customActions.length ? raw.customActions : DEFAULT_ACTIONS,
+    chatPresets: raw.chatPresets || [],
   };
 }
 
@@ -438,9 +441,168 @@ ipcMain.handle('rename-vault-file', async (event, { type, oldName, newName }) =>
   fs.renameSync(oldFull, newFull);
 });
 
+function trashDirFor(type) {
+  return path.join(getActiveVault().path, '.trash', type === 'wiki' ? 'wiki' : 'raw-sources');
+}
+
 ipcMain.handle('delete-vault-file', async (event, { type, name }) => {
   const full = vaultFilePath(type, name);
-  if (fs.existsSync(full)) fs.unlinkSync(full);
+  if (!fs.existsSync(full)) return;
+  const trashDir = trashDirFor(type);
+  if (!fs.existsSync(trashDir)) fs.mkdirSync(trashDir, { recursive: true });
+  const safeName = path.basename(String(name || ''));
+  let dest = path.join(trashDir, safeName);
+  if (fs.existsSync(dest)) dest = path.join(trashDir, `${Date.now()}-${safeName}`);
+  fs.renameSync(full, dest);
+});
+
+ipcMain.handle('list-trash', async () => {
+  function listDir(dir) {
+    try {
+      return fs
+        .readdirSync(dir)
+        .map((name) => ({ name, mtime: fs.statSync(path.join(dir, name)).mtime.toISOString() }))
+        .sort((a, b) => new Date(b.mtime) - new Date(a.mtime));
+    } catch {
+      return [];
+    }
+  }
+  return { wiki: listDir(trashDirFor('wiki')), sources: listDir(trashDirFor('sources')) };
+});
+
+ipcMain.handle('restore-vault-file', async (event, { type, name }) => {
+  const src = path.join(trashDirFor(type), path.basename(String(name || '')));
+  if (!fs.existsSync(src)) throw new Error('Datei nicht im Papierkorb gefunden.');
+  const destDir = path.join(getActiveVault().path, type === 'wiki' ? 'wiki' : 'raw-sources');
+  if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+  const dest = path.join(destDir, path.basename(String(name || '')));
+  if (fs.existsSync(dest)) throw new Error('Es existiert bereits eine Datei mit diesem Namen im Vault.');
+  fs.renameSync(src, dest);
+});
+
+ipcMain.handle('empty-trash', async () => {
+  const dir = path.join(getActiveVault().path, '.trash');
+  if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+});
+
+function searchDir(dir, query, results, type) {
+  if (!fs.existsSync(dir)) return;
+  const q = query.toLowerCase();
+  for (const name of fs.readdirSync(dir)) {
+    if (name.startsWith('.')) continue;
+    const full = path.join(dir, name);
+    if (!fs.statSync(full).isFile()) continue;
+    try {
+      const content = fs.readFileSync(full, 'utf-8');
+      const idx = content.toLowerCase().indexOf(q);
+      if (idx !== -1) {
+        const start = Math.max(0, idx - 60);
+        const snippet = content.slice(start, idx + q.length + 60).replace(/\s+/g, ' ').trim();
+        results.push({ type, name, snippet });
+      }
+    } catch {
+      // skip unreadable/binary files
+    }
+  }
+}
+
+ipcMain.handle('search-vault', async (event, query) => {
+  const results = [];
+  if (query && query.trim()) {
+    const vaultPath = getActiveVault().path;
+    searchDir(path.join(vaultPath, 'wiki'), query, results, 'wiki');
+    searchDir(path.join(vaultPath, 'raw-sources'), query, results, 'sources');
+  }
+  return results.slice(0, 50);
+});
+
+ipcMain.handle('search-sessions', async (event, query) => {
+  const dir = sessionsDirFor(getActiveVault().path);
+  if (!fs.existsSync(dir) || !query || !query.trim()) return [];
+  const q = query.toLowerCase();
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl'));
+  const results = [];
+
+  for (const file of files) {
+    const full = path.join(dir, file);
+    let snippet = null;
+    let title = null;
+    try {
+      const lines = fs.readFileSync(full, 'utf-8').split('\n');
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let entry;
+        try {
+          entry = JSON.parse(line);
+        } catch {
+          continue;
+        }
+        if (entry.isSidechain) continue;
+        if (entry.type === 'ai-title' && entry.aiTitle && !title) title = entry.aiTitle;
+        if (entry.type !== 'user' && entry.type !== 'assistant') continue;
+        if (!entry.message) continue;
+        const text = extractText(entry.message.content);
+        if (!text) continue;
+        if (!title && entry.type === 'user' && !text.startsWith('<local-command-caveat')) title = text.slice(0, 80);
+        if (!snippet && text.toLowerCase().includes(q)) {
+          const idx = text.toLowerCase().indexOf(q);
+          const start = Math.max(0, idx - 50);
+          snippet = text.slice(start, idx + q.length + 50).replace(/\s+/g, ' ').trim();
+        }
+      }
+    } catch {
+      continue;
+    }
+    if (snippet) {
+      const stat = fs.statSync(full);
+      results.push({
+        id: path.basename(file, '.jsonl'),
+        title: title || 'Unbenannter Chat',
+        snippet,
+        mtime: stat.mtime.toISOString(),
+      });
+    }
+  }
+
+  return results.sort((a, b) => new Date(b.mtime) - new Date(a.mtime)).slice(0, 50);
+});
+
+ipcMain.handle('get-wiki-graph', async () => {
+  const wikiDir = path.join(getActiveVault().path, 'wiki');
+  if (!fs.existsSync(wikiDir)) return { nodes: [], edges: [] };
+
+  const files = fs.readdirSync(wikiDir).filter((f) => f.endsWith('.md'));
+  const ids = files.map((f) => f.replace(/\.md$/, ''));
+  const normalize = (s) => s.toLowerCase().replace(/[-_\s]+/g, ' ').trim();
+  const idByNormalized = new Map(ids.map((id) => [normalize(id), id]));
+
+  const edgesSet = new Set();
+  for (const file of files) {
+    const id = file.replace(/\.md$/, '');
+    let content;
+    try {
+      content = fs.readFileSync(path.join(wikiDir, file), 'utf-8');
+    } catch {
+      continue;
+    }
+    for (const m of content.matchAll(/\[\[([^\]|]+)/g)) {
+      const target = idByNormalized.get(normalize(m[1]));
+      if (target && target !== id) {
+        edgesSet.add([id, target].sort().join('::'));
+      }
+    }
+  }
+
+  const edges = [...edgesSet].map((key) => {
+    const [source, target] = key.split('::');
+    return { source, target };
+  });
+
+  return { nodes: ids.map((id) => ({ id })), edges };
+});
+
+ipcMain.handle('get-working-diff', async () => {
+  return runGit(['diff'], getActiveVault().path);
 });
 
 ipcMain.handle('import-file', async (event, sourcePath) => {
@@ -566,6 +728,80 @@ ipcMain.handle('remove-action', async (event, id) => {
   configState.customActions = configState.customActions.filter((a) => a.id !== id);
   saveConfig();
   return configState;
+});
+
+ipcMain.handle('add-preset', async (event, { label, systemPrompt }) => {
+  configState.chatPresets.push({ id: crypto.randomUUID(), label, systemPrompt });
+  saveConfig();
+  return configState;
+});
+
+ipcMain.handle('update-preset', async (event, { id, label, systemPrompt }) => {
+  const preset = configState.chatPresets.find((p) => p.id === id);
+  if (!preset) throw new Error('Preset nicht gefunden.');
+  preset.label = label;
+  preset.systemPrompt = systemPrompt;
+  saveConfig();
+  return configState;
+});
+
+ipcMain.handle('remove-preset', async (event, id) => {
+  configState.chatPresets = configState.chatPresets.filter((p) => p.id !== id);
+  saveConfig();
+  return configState;
+});
+
+ipcMain.handle('get-app-version', async () => app.getVersion());
+
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    const res = await fetch('https://api.github.com/repos/kpolet2010-hue/claude-gui/releases/latest', {
+      headers: { 'User-Agent': 'brain-app' },
+    });
+    if (!res.ok) return { hasUpdate: false };
+    const data = await res.json();
+    const latest = (data.tag_name || '').replace(/^v/, '');
+    const current = app.getVersion();
+    return { hasUpdate: !!latest && latest !== current, latestVersion: latest, url: data.html_url };
+  } catch {
+    return { hasUpdate: false };
+  }
+});
+
+ipcMain.handle('export-config', async () => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: 'brain-config-backup.json',
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+  if (result.canceled || !result.filePath) return false;
+  fs.writeFileSync(result.filePath, JSON.stringify(configState, null, 2));
+  return true;
+});
+
+ipcMain.handle('import-config', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['openFile'],
+  });
+  if (result.canceled || !result.filePaths.length) return null;
+
+  const raw = JSON.parse(fs.readFileSync(result.filePaths[0], 'utf-8'));
+  if (!raw.vaults || !Array.isArray(raw.vaults) || !raw.vaults.length) {
+    throw new Error('Ungültige Konfigurationsdatei.');
+  }
+
+  configState = {
+    vaults: raw.vaults,
+    activeVault: raw.activeVault || raw.vaults[0].name,
+    autoSync: { ...defaultConfig().autoSync, ...(raw.autoSync || {}) },
+    theme: raw.theme || defaultConfig().theme,
+    model: raw.model || '',
+    customActions: raw.customActions && raw.customActions.length ? raw.customActions : DEFAULT_ACTIONS,
+    chatPresets: raw.chatPresets || [],
+  };
+  saveConfig();
+  scheduleAutoSync();
+  return { ...configState, needsSetup: !fs.existsSync(getActiveVault().path) };
 });
 
 let autoSyncInterval = null;

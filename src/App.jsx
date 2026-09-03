@@ -7,6 +7,8 @@ import VaultView from './components/VaultView.jsx';
 import SessionsView from './components/SessionsView.jsx';
 import SettingsView from './components/SettingsView.jsx';
 import Onboarding from './components/Onboarding.jsx';
+import CommandPalette from './components/CommandPalette.jsx';
+import Modal from './components/Modal.jsx';
 
 export default function App() {
   const [view, setView] = useState('home');
@@ -14,10 +16,13 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [vaultVersion, setVaultVersion] = useState(0);
   const [actionsVersion, setActionsVersion] = useState(0);
+  const [presetsVersion, setPresetsVersion] = useState(0);
   const [vaultSearchTrigger, setVaultSearchTrigger] = useState(0);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
   const [activeVaultName, setActiveVaultName] = useState('Default');
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [vaultDiff, setVaultDiff] = useState(null);
   const streamingAssistantIdRef = useRef(null);
   const streamingErrorIdRef = useRef(null);
   const hasActiveSessionRef = useRef(false);
@@ -56,6 +61,9 @@ export default function App() {
         e.preventDefault();
         setView('vault');
         setVaultSearchTrigger((v) => v + 1);
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        setPaletteOpen(true);
       }
     }
     document.addEventListener('keydown', handleKeyDown);
@@ -106,7 +114,7 @@ export default function App() {
     });
   }, []);
 
-  async function runPrompt(prompt, displayText = prompt) {
+  async function runPrompt(prompt, displayText = prompt, options = {}) {
     const continueConversation = hasActiveSessionRef.current;
     setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'user', text: displayText }]);
     streamingAssistantIdRef.current = null;
@@ -117,6 +125,11 @@ export default function App() {
     setBusy(false);
     streamingAssistantIdRef.current = null;
     streamingErrorIdRef.current = null;
+
+    if (options.checkDiff) {
+      const diff = await window.claudeAPI.getWorkingDiff();
+      if (diff && diff.trim()) setVaultDiff(diff);
+    }
   }
 
   async function stopPrompt() {
@@ -134,6 +147,10 @@ export default function App() {
 
   function onActionsChanged() {
     setActionsVersion((v) => v + 1);
+  }
+
+  function onPresetsChanged() {
+    setPresetsVersion((v) => v + 1);
   }
 
   if (checkingSetup) return null;
@@ -163,6 +180,7 @@ export default function App() {
           onStop={stopPrompt}
           onNewChat={newChat}
           vaultVersion={vaultVersion}
+          presetsVersion={presetsVersion}
         />
         <UsageView active={view === 'usage'} vaultVersion={vaultVersion} />
         <VaultView
@@ -176,8 +194,19 @@ export default function App() {
           active={view === 'settings'}
           onVaultChanged={onVaultChanged}
           onActionsChanged={onActionsChanged}
+          onPresetsChanged={onPresetsChanged}
         />
       </main>
+
+      {paletteOpen && (
+        <CommandPalette onClose={() => setPaletteOpen(false)} setView={setView} newChat={newChat} runPrompt={runPrompt} />
+      )}
+
+      {vaultDiff && (
+        <Modal title="Änderungen im Vault (git diff)" onClose={() => setVaultDiff(null)}>
+          <pre className="modal-plain">{vaultDiff}</pre>
+        </Modal>
+      )}
     </div>
   );
 }

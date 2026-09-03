@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import Modal from './Modal.jsx';
+import WikiGraph from './WikiGraph.jsx';
 import { useToast } from './ToastContext.jsx';
 
 function formatRelativeDate(iso) {
@@ -29,12 +30,14 @@ export default function VaultView({ active, vaultVersion, onVaultChanged, search
   const [subView, setSubView] = useState('files');
   const [data, setData] = useState({ wiki: [], sources: [] });
   const [search, setSearch] = useState('');
+  const [contentResults, setContentResults] = useState(null);
   const [openFile, setOpenFile] = useState(null);
   const [fileContent, setFileContent] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [gitLog, setGitLog] = useState([]);
   const [openCommit, setOpenCommit] = useState(null);
   const [diffContent, setDiffContent] = useState('');
+  const [trash, setTrash] = useState({ wiki: [], sources: [] });
   const searchInputRef = useRef(null);
   const showToast = useToast();
 
@@ -52,6 +55,15 @@ export default function VaultView({ active, vaultVersion, onVaultChanged, search
     (async () => setGitLog(await window.claudeAPI.getGitLog()))();
   }, [active, subView, vaultVersion]);
 
+  useEffect(() => {
+    if (!active || subView !== 'trash') return;
+    (async () => setTrash(await window.claudeAPI.listTrash()))();
+  }, [active, subView, vaultVersion]);
+
+  useEffect(() => {
+    setContentResults(null);
+  }, [search]);
+
   async function openItem(type, item) {
     setOpenFile({ type, name: item.name });
     setFileContent('Lade...');
@@ -61,6 +73,11 @@ export default function VaultView({ active, vaultVersion, onVaultChanged, search
 
   async function refreshVault() {
     setData(await window.claudeAPI.getVault());
+  }
+
+  async function searchContent() {
+    if (!search.trim()) return;
+    setContentResults(await window.claudeAPI.searchVault(search.trim()));
   }
 
   async function renameFile() {
@@ -77,15 +94,33 @@ export default function VaultView({ active, vaultVersion, onVaultChanged, search
   }
 
   async function deleteFile() {
-    if (!window.confirm(`"${openFile.name}" wirklich löschen?`)) return;
+    if (!window.confirm(`"${openFile.name}" in den Papierkorb verschieben?`)) return;
     try {
       await window.claudeAPI.deleteVaultFile(openFile.type, openFile.name);
-      showToast('Datei gelöscht.', 'success');
+      showToast('In den Papierkorb verschoben.', 'success');
       setOpenFile(null);
       refreshVault();
     } catch (err) {
       showToast(err.message, 'error');
     }
+  }
+
+  async function restoreFromTrash(type, name) {
+    try {
+      await window.claudeAPI.restoreVaultFile(type, name);
+      showToast('Datei wiederhergestellt.', 'success');
+      setTrash(await window.claudeAPI.listTrash());
+      refreshVault();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function emptyTrash() {
+    if (!window.confirm('Papierkorb endgültig leeren? Das kann nicht rückgängig gemacht werden.')) return;
+    await window.claudeAPI.emptyTrash();
+    setTrash({ wiki: [], sources: [] });
+    showToast('Papierkorb geleert.', 'success');
   }
 
   async function handleDrop(e) {
@@ -134,14 +169,20 @@ export default function VaultView({ active, vaultVersion, onVaultChanged, search
           <div id="greeting">Vault</div>
           <div id="greeting-sub">Was gerade in deinem Wiki steckt</div>
         </div>
-        <input
-          ref={searchInputRef}
-          className="settings-input"
-          style={{ width: 220 }}
-          placeholder="Suchen... (Strg+K)"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            ref={searchInputRef}
+            className="settings-input"
+            style={{ width: 220 }}
+            placeholder="Suchen... (Strg+K)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && searchContent()}
+          />
+          <button className="preset-btn" style={{ width: 'auto' }} onClick={searchContent} disabled={!search.trim()}>
+            Inhalt durchsuchen
+          </button>
+        </div>
       </div>
 
       <div className="vault-subnav">
@@ -151,12 +192,42 @@ export default function VaultView({ active, vaultVersion, onVaultChanged, search
         >
           Dateien
         </button>
+        <button
+          className={`vault-subnav-btn ${subView === 'graph' ? 'active' : ''}`}
+          onClick={() => setSubView('graph')}
+        >
+          Graph
+        </button>
         <button className={`vault-subnav-btn ${subView === 'git' ? 'active' : ''}`} onClick={() => setSubView('git')}>
           Git-Verlauf
         </button>
+        <button
+          className={`vault-subnav-btn ${subView === 'trash' ? 'active' : ''}`}
+          onClick={() => setSubView('trash')}
+        >
+          Papierkorb
+        </button>
       </div>
 
-      {subView === 'files' ? (
+      {subView === 'files' && contentResults !== null ? (
+        <div className="git-log-list">
+          {contentResults.length === 0 && <div className="vault-empty">Keine Treffer im Inhalt gefunden.</div>}
+          {contentResults.map((r) => (
+            <button
+              className="git-log-row"
+              key={`${r.type}-${r.name}`}
+              onClick={() => openItem(r.type, { name: r.name })}
+            >
+              <span className="git-log-hash">{r.type === 'wiki' ? 'Wiki' : 'Source'}</span>
+              <span className="git-log-subject">
+                <strong>{r.name}</strong> — …{r.snippet}…
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {subView === 'files' && contentResults === null && (
         <>
           <div id="vault-summary">
             <div className="vault-summary-item">
@@ -192,7 +263,17 @@ export default function VaultView({ active, vaultVersion, onVaultChanged, search
             </div>
           </div>
         </>
-      ) : (
+      )}
+
+      {subView === 'graph' && (
+        <WikiGraph
+          active={active && subView === 'graph'}
+          vaultVersion={vaultVersion}
+          onOpenNode={(id) => openItem('wiki', { name: `${id}.md` })}
+        />
+      )}
+
+      {subView === 'git' && (
         <div className="git-log-list">
           {gitLog.length === 0 && <div className="vault-empty">Kein Git-Verlauf gefunden.</div>}
           {gitLog.map((commit) => (
@@ -205,6 +286,46 @@ export default function VaultView({ active, vaultVersion, onVaultChanged, search
         </div>
       )}
 
+      {subView === 'trash' && (
+        <>
+          <div id="vault-columns">
+            <div className="vault-column">
+              <div className="vault-column-label">Wiki-Themen</div>
+              <div className="vault-list">
+                {trash.wiki.length === 0 && <div className="vault-empty">Papierkorb leer.</div>}
+                {trash.wiki.map((item) => (
+                  <div className="vault-row" key={item.name} style={{ cursor: 'default' }}>
+                    <span className="vault-row-name">{item.name}</span>
+                    <button className="preset-btn" style={{ width: 'auto' }} onClick={() => restoreFromTrash('wiki', item.name)}>
+                      Wiederherstellen
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="vault-column">
+              <div className="vault-column-label">Rohquellen</div>
+              <div className="vault-list">
+                {trash.sources.length === 0 && <div className="vault-empty">Papierkorb leer.</div>}
+                {trash.sources.map((item) => (
+                  <div className="vault-row" key={item.name} style={{ cursor: 'default' }}>
+                    <span className="vault-row-name">{item.name}</span>
+                    <button className="preset-btn" style={{ width: 'auto' }} onClick={() => restoreFromTrash('sources', item.name)}>
+                      Wiederherstellen
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          {(trash.wiki.length > 0 || trash.sources.length > 0) && (
+            <button className="danger-btn" style={{ marginTop: 12, alignSelf: 'flex-start' }} onClick={emptyTrash}>
+              Papierkorb leeren
+            </button>
+          )}
+        </>
+      )}
+
       {openFile && (
         <Modal
           title={openFile.name}
@@ -212,7 +333,7 @@ export default function VaultView({ active, vaultVersion, onVaultChanged, search
           footer={
             <>
               <button className="preset-btn" style={{ width: 'auto' }} onClick={renameFile}>Umbenennen</button>
-              <button className="danger-btn" onClick={deleteFile}>Löschen</button>
+              <button className="danger-btn" onClick={deleteFile}>In Papierkorb</button>
             </>
           }
         >

@@ -35,11 +35,16 @@ Jeder Klick auf eine Aktion (z. B. "Wiki neu bauen") startet `claude` mit `cwd` 
   - **Copy-Button** auf jeder Chat-Bubble kopiert den Text in die Zwischenablage
   - **@-Mentions**: `@dateiname` im Prompt tippen öffnet eine Auswahl aus Vault-Dateien; der Inhalt wird beim Senden automatisch als Kontext angehängt (im Chat bleibt nur `@dateiname` sichtbar)
   - **Exportieren**-Button speichert den aktuellen Chat als Markdown-Datei
-- **Aktionen** — frei konfigurierbare Prompt-Buttons in der Sidebar (Verwaltung unter Einstellungen → Aktionen), vorbelegt mit vier Beispielen: Wiki neu bauen, Neue Sources einarbeiten, Thema erweitern, Brain-Suche. Ein Prompt mit `{input}` fragt beim Klick per Dialog nach einem Wert.
+  - **Presets**: dem Prompt fest vorangestellter Kontext (z. B. Sprache/Ton), verwaltbar unter Einstellungen → Chat-Presets, auswählbar per Dropdown im Chat
+- **Aktionen** — frei konfigurierbare Prompt-Buttons in der Sidebar (Verwaltung unter Einstellungen → Aktionen), vorbelegt mit vier Beispielen: Wiki neu bauen, Neue Sources einarbeiten, Thema erweitern, Brain-Suche. Ein Prompt mit `{input}` fragt beim Klick per Dialog nach einem Wert. Nach jeder Aktion wird automatisch geprüft, ob sich im Vault etwas geändert hat (`git diff`) und als Review-Dialog angezeigt.
+- **Command Palette** (Strg+P) — Schnellsuche über alle Ansichten und Aktionen
 - **Usage** — Session- und Wochenlimit von Claude Code auf einen Blick (`/usage`)
-- **Vault** — Übersicht über vorhandene Wiki-Themen und Rohquellen, mit Suchfeld (Strg+K); Klick auf einen Eintrag öffnet den Dateiinhalt (Markdown gerendert bei `.md`) mit Umbenennen/Löschen. Dateien lassen sich per Drag & Drop auf die Rohquellen-Spalte direkt importieren. Ein zweiter Tab zeigt den Git-Verlauf des Vaults inkl. Diff-Ansicht pro Commit.
-- **Verlauf** — bisherige Claude-Code-Sessions im aktiven Vault durchstöbern
-- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), Design-Theme und Claude-Modell wählen, Sidebar-Aktionen verwalten, sowie automatisches Sync konfigurieren:
+- **Vault** — Übersicht über vorhandene Wiki-Themen und Rohquellen, mit Datei- und Volltextsuche (Strg+K); Klick auf einen Eintrag öffnet den Dateiinhalt (Markdown gerendert bei `.md`) mit Umbenennen/Löschen. Dateien lassen sich per Drag & Drop auf die Rohquellen-Spalte direkt importieren. Weitere Tabs:
+  - **Graph** — visualisiert die `[[topic-name]]`-Verlinkungen zwischen Wiki-Dateien
+  - **Git-Verlauf** — Commit-Liste inkl. Diff-Ansicht pro Commit
+  - **Papierkorb** — gelöschte Dateien wiederherstellen oder endgültig entfernen
+- **Verlauf** — bisherige Claude-Code-Sessions im aktiven Vault durchstöbern, inkl. Volltextsuche über den Gesprächsinhalt und Export einer Session als Markdown
+- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), Design-Theme und Claude-Modell wählen, Sidebar-Aktionen und Chat-Presets verwalten, automatisches Sync konfigurieren, Einstellungen als JSON sichern/wiederherstellen, und nach Updates suchen:
   - beim App-Start automatisch "Neue Sources" ausführen
   - und/oder in einem festen Intervall (Minuten) im Hintergrund
 - **Themes** — vier Farbschemata zur Auswahl (Sunset, Midnight, Forest, Light), gespeichert in `config.json` und beim nächsten Start automatisch wieder aktiv
@@ -56,7 +61,8 @@ Laufende Prompts geben stderr-Ausgaben als eigene, farblich abgesetzte Fehler-Bu
 | --- | --- |
 | `Strg+N` | Neuer Chat (springt zur Chat-Ansicht und leert sie) |
 | `Strg+K` | Zur Vault-Ansicht springen und das Suchfeld fokussieren |
-| `Esc` | Offenes Modal schließen (Datei-Viewer, Git-Diff) |
+| `Strg+P` | Command Palette öffnen (Ansichten/Aktionen per Schnellsuche) |
+| `Esc` | Offenes Modal schließen (Datei-Viewer, Git-Diff, Command Palette) |
 | `↑` / `↓` im Chat-Eingabefeld | Durch zuletzt gesendete Prompts blättern |
 | `Enter` im Chat-Eingabefeld | Prompt senden |
 
@@ -122,6 +128,9 @@ Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweis
   },
   "customActions": [
     { "id": "wiki-rebuild", "label": "Wiki neu bauen", "prompt": "..." }
+  ],
+  "chatPresets": [
+    { "id": "...", "label": "Englisch, knapp", "systemPrompt": "Reply in English, be concise." }
   ]
 }
 ```
@@ -135,6 +144,7 @@ Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweis
 | `autoSync.enabled` / `.intervalMinutes` | Automatisches "Neue Sources" in festem Intervall |
 | `autoSync.runOnStartup` | Automatisches "Neue Sources" beim App-Start (einmalig) |
 | `customActions` | Sidebar-Buttons; `prompt` darf `{input}` enthalten für eine Dialog-Abfrage beim Klick |
+| `chatPresets` | Im Chat wählbare Kontext-Vorlagen; `systemPrompt` wird jedem gesendeten Prompt vorangestellt |
 
 ## Troubleshooting
 
@@ -155,3 +165,5 @@ Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweis
 - Läuft ein automatischer Sync (Intervall oder Start), während du gerade einen Chat mit `--continue` fortführst, zählt der Sync-Lauf für die Claude-CLI als "letzte Konversation". Eine danach gesendete Chat-Nachricht knüpft dann an den Sync-Kontext statt an dein eigentliches Gespräch an — in dem Fall hilft "Neuer Chat" oder kurz warten, bis der Sync durch ist.
 - **Fenster schließen beendet die App nicht mehr** — das X-Symbol minimiert nur ins Tray (Symbol im Infobereich der Taskleiste), damit Auto-Sync im Hintergrund weiterlaufen kann. Echtes Beenden geht nur über "Beenden" im Tray-Menü (Rechtsklick auf das Icon).
 - Beim Drag & Drop im Vault werden Dateien per `webUtils.getPathForFile()` aufgelöst (nicht mehr über das ältere `File.path`, das neuere Electron-Versionen aus Sicherheitsgründen entfernt haben).
+- **"Diff-Vorschau" ist ein Review danach, keine Vorschau davor**: Nach einer Sidebar-Aktion zeigt die App automatisch `git diff` der noch nicht committeten Änderungen im Vault (falls der Vault ein Git-Repo ist). Ein echter Dry-Run vor der Ausführung ist mit `claude -p` nicht möglich, da die CLI keinen entsprechenden Modus anbietet — im Zweifel per `git checkout` manuell zurückrollen.
+- Gelöschte Vault-Dateien landen in `.trash/wiki/` bzw. `.trash/raw-sources/` statt endgültig gelöscht zu werden (wiederherstellbar über den "Papierkorb"-Tab). In einem Git-Repo taucht das als normale Dateiänderung auf — falls unerwünscht, `.trash/` zur `.gitignore` **des Vaults** (nicht dieses Repos) hinzufügen.

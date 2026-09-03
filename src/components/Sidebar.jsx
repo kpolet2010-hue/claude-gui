@@ -14,9 +14,10 @@ export default function Sidebar({ view, setView, busy, runPrompt, actionsVersion
     if (action.prompt.includes('{input}')) {
       const input = window.prompt(`Eingabe für "${action.label}"`);
       if (!input) return;
-      runPrompt(action.prompt.replaceAll('{input}', input));
+      const prompt = action.prompt.replaceAll('{input}', input);
+      runPrompt(prompt, prompt, { checkDiff: true });
     } else {
-      runPrompt(action.prompt);
+      runPrompt(action.prompt, action.prompt, { checkDiff: true });
     }
   }
 

@@ -8,6 +8,7 @@ const emptyConfig = {
   theme: 'sunset',
   model: '',
   customActions: [],
+  chatPresets: [],
 };
 
 const THEMES = [
@@ -24,17 +25,23 @@ const MODELS = [
   { id: 'haiku', label: 'Haiku' },
 ];
 
-export default function SettingsView({ active, onVaultChanged, onActionsChanged }) {
+export default function SettingsView({ active, onVaultChanged, onActionsChanged, onPresetsChanged }) {
   const [config, setConfig] = useState(emptyConfig);
   const [edits, setEdits] = useState({});
   const [newVault, setNewVault] = useState({ name: '', path: '' });
   const [actionEdits, setActionEdits] = useState({});
   const [newAction, setNewAction] = useState({ label: '', prompt: '' });
+  const [presetEdits, setPresetEdits] = useState({});
+  const [newPreset, setNewPreset] = useState({ label: '', systemPrompt: '' });
+  const [appVersion, setAppVersion] = useState('');
+  const [updateCheck, setUpdateCheck] = useState(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const showToast = useToast();
 
   useEffect(() => {
     if (!active) return;
     (async () => setConfig(await window.claudeAPI.getConfig()))();
+    (async () => setAppVersion(await window.claudeAPI.getAppVersion()))();
   }, [active]);
 
   function editField(name, field, value) {
@@ -149,6 +156,72 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged 
     setNewAction({ label: '', prompt: '' });
     showToast('Aktion hinzugefügt.', 'success');
     onActionsChanged();
+  }
+
+  function editPresetField(id, field, value) {
+    setPresetEdits((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  }
+
+  function presetFieldValue(preset, field) {
+    return presetEdits[preset.id]?.[field] ?? preset[field];
+  }
+
+  async function savePreset(preset) {
+    try {
+      const updated = await window.claudeAPI.updatePreset(
+        preset.id,
+        presetFieldValue(preset, 'label'),
+        presetFieldValue(preset, 'systemPrompt')
+      );
+      setConfig(updated);
+      setPresetEdits((prev) => ({ ...prev, [preset.id]: undefined }));
+      showToast('Preset gespeichert.', 'success');
+      onPresetsChanged();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function deletePreset(id) {
+    if (!window.confirm('Dieses Preset wirklich löschen?')) return;
+    const updated = await window.claudeAPI.removePreset(id);
+    setConfig(updated);
+    onPresetsChanged();
+  }
+
+  async function addPreset() {
+    if (!newPreset.label.trim() || !newPreset.systemPrompt.trim()) return;
+    const updated = await window.claudeAPI.addPreset(newPreset.label.trim(), newPreset.systemPrompt.trim());
+    setConfig(updated);
+    setNewPreset({ label: '', systemPrompt: '' });
+    showToast('Preset hinzugefügt.', 'success');
+    onPresetsChanged();
+  }
+
+  async function handleCheckUpdate() {
+    setCheckingUpdate(true);
+    setUpdateCheck(await window.claudeAPI.checkForUpdates());
+    setCheckingUpdate(false);
+  }
+
+  async function handleExportConfig() {
+    const saved = await window.claudeAPI.exportConfig();
+    if (saved) showToast('Einstellungen exportiert.', 'success');
+  }
+
+  async function handleImportConfig() {
+    try {
+      const updated = await window.claudeAPI.importConfig();
+      if (!updated) return;
+      setConfig(updated);
+      document.documentElement.setAttribute('data-theme', updated.theme || 'sunset');
+      showToast('Einstellungen importiert.', 'success');
+      onVaultChanged();
+      onActionsChanged();
+      onPresetsChanged();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   }
 
   return (
@@ -308,6 +381,53 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged 
       </div>
 
       <div className="settings-section">
+        <div className="settings-section-label">Chat-Presets</div>
+        <div className="settings-hint" style={{ marginBottom: 12 }}>
+          Ein Preset stellt dem eigentlichen Prompt einen festen Kontext voran (z. B. eine Sprache oder einen Ton) —
+          auswählbar im Chat-Ansicht-Dropdown.
+        </div>
+
+        {config.chatPresets.map((preset) => (
+          <div className="settings-action-row" key={preset.id}>
+            <input
+              className="settings-input"
+              value={presetFieldValue(preset, 'label')}
+              onChange={(e) => editPresetField(preset.id, 'label', e.target.value)}
+            />
+            <textarea
+              className="settings-textarea"
+              value={presetFieldValue(preset, 'systemPrompt')}
+              onChange={(e) => editPresetField(preset.id, 'systemPrompt', e.target.value)}
+            />
+            <div className="settings-action-buttons">
+              <button className="preset-btn" style={{ width: 'auto' }} onClick={() => savePreset(preset)}>
+                Speichern
+              </button>
+              <button className="danger-btn" onClick={() => deletePreset(preset.id)}>Löschen</button>
+            </div>
+          </div>
+        ))}
+
+        <div className="settings-action-row">
+          <input
+            className="settings-input"
+            placeholder="Name des Presets"
+            value={newPreset.label}
+            onChange={(e) => setNewPreset((p) => ({ ...p, label: e.target.value }))}
+          />
+          <textarea
+            className="settings-textarea"
+            placeholder="Kontext-Text, der jedem Prompt vorangestellt wird"
+            value={newPreset.systemPrompt}
+            onChange={(e) => setNewPreset((p) => ({ ...p, systemPrompt: e.target.value }))}
+          />
+          <button className="preset-btn" style={{ width: 'auto' }} onClick={addPreset}>
+            + Preset hinzufügen
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-section">
         <div className="settings-section-label">Automatisches Sync ("Neue Sources")</div>
 
         <label className="settings-checkbox-row">
@@ -340,6 +460,37 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged 
           Läuft im Hintergrund auf dem aktiven Vault (auch bei minimiertem Fenster/Tray). Änderungen an "Beim Start"
           gelten ab dem nächsten App-Start.
         </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-label">Sichern &amp; Wiederherstellen</div>
+        <div className="settings-hint" style={{ marginBottom: 12 }}>
+          Exportiert/importiert Vaults, Aktionen, Presets und alle anderen Einstellungen als JSON-Datei — praktisch
+          für einen zweiten Rechner.
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="preset-btn" style={{ width: 'auto' }} onClick={handleExportConfig}>
+            Einstellungen exportieren
+          </button>
+          <button className="preset-btn" style={{ width: 'auto' }} onClick={handleImportConfig}>
+            Einstellungen importieren
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-label">Über</div>
+        <div className="settings-hint" style={{ marginBottom: 12 }}>Version {appVersion || '–'}</div>
+        <button className="preset-btn" style={{ width: 'auto' }} onClick={handleCheckUpdate} disabled={checkingUpdate}>
+          {checkingUpdate ? 'Prüfe...' : 'Nach Updates suchen'}
+        </button>
+        {updateCheck && (
+          <div className="settings-hint" style={{ marginTop: 10 }}>
+            {updateCheck.hasUpdate
+              ? `Neue Version verfügbar: ${updateCheck.latestVersion} — ${updateCheck.url}`
+              : 'Du hast die aktuellste Version.'}
+          </div>
+        )}
       </div>
     </div>
   );
