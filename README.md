@@ -53,7 +53,17 @@ In `config.json` den Pfad zum eigenen Vault eintragen:
 npm start
 ```
 
+Baut das React-Frontend mit Vite und startet danach Electron.
+
+Für die Entwicklung am UI allein (im Browser, ohne Electron) steht außerdem `npm run dev` bereit — startet den Vite-Dev-Server mit Hot Reload, allerdings ohne `window.claudeAPI` (die kommt nur aus dem Electron-Preload).
+
+## Tech Stack
+
+- **Electron** — Desktop-Shell, Main-Prozess in `main.js`, IPC-Bridge in `preload.js`
+- **React (JSX)** — komplettes UI in `src/` (`App.jsx` + `src/components/`), gebaut mit **Vite**
+- Kein TypeScript — reines JSX
+
 ## Hinweise
 
 - Alle Prompts laufen mit `--allowedTools Bash,Write,Read,Edit` im Kontext des konfigurierten Vault-Ordners.
-- `history.json` und `stats.json` werden lokal zur Laufzeit erzeugt und sind nicht Teil des Repos.
+- `history.json`, `stats.json` und `dist/` (Vite-Build-Output) werden lokal erzeugt und sind nicht Teil des Repos.

@@ -39,7 +39,7 @@ function createWindow() {
     },
   });
 
-  win.loadFile(path.join(__dirname, 'src', 'index.html'));
+  win.loadFile(path.join(__dirname, 'dist', 'index.html'));
 }
 
 app.whenReady().then(createWindow);

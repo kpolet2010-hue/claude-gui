@@ -5,13 +5,21 @@
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron ."
+    "dev": "vite",
+    "build": "vite build",
+    "start": "npm run build && electron ."
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
   "devDependencies": {
-    "electron": "^44.1.0"
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^44.1.0",
+    "vite": "^5.4.11"
   }
 }
