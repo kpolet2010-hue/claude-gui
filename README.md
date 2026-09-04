@@ -1,116 +1,116 @@
 # Brain
 
-*[English version](README.en.md)*
+*[Deutsche Version](README.md)*
 
-Electron-Desktop-GUI für die lokal installierte [`claude` CLI](https://docs.claude.com/claude-code), zugeschnitten auf die Arbeit mit einem oder mehreren persönlichen Obsidian-Vaults.
+An Electron desktop GUI for the locally installed [`claude` CLI](https://docs.claude.com/claude-code), built for working with one or more personal Obsidian vaults.
 
-## Inhalt
+## Contents
 
-- [Was ist ein "Vault"?](#was-ist-ein-vault)
+- [What is a "Vault"?](#what-is-a-vault)
 - [Features](#features)
-- [Tastenkürzel](#tastenkürzel)
-- [Voraussetzungen](#voraussetzungen)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Requirements](#requirements)
 - [Setup](#setup)
 - [Start](#start)
-- [Installer bauen](#installer-bauen)
+- [Building an Installer](#building-an-installer)
 - [Tech Stack](#tech-stack)
-- [`config.json`-Referenz](#configjson-referenz)
+- [`config.json` Reference](#configjson-reference)
 - [Troubleshooting](#troubleshooting)
-- [Hinweise](#hinweise)
+- [Notes](#notes)
 
-## Was ist ein "Vault"?
+## What is a "Vault"?
 
-Ein Vault ist ein persönlicher Obsidian-Ordner — die eigentliche Wissensbasis, mit der die App arbeitet. Vaults liegen komplett außerhalb dieses Repos (verwaltet in `config.json`, editierbar über die Einstellungen-Ansicht) und werden nie mit hochgeladen.
+A vault is a personal Obsidian folder — the actual knowledge base the app works with. Vaults live entirely outside this repo (managed in `config.json`, editable from the Settings view) and are never uploaded with it.
 
-Innerhalb eines Vaults erwartet die App zwei Unterordner:
+Inside a vault, the app expects two subfolders:
 
-- **`raw-sources/`** — rohes, unstrukturiertes Ausgangsmaterial (Notizen, Artikel, Transkripte, etc.), das du dort ablegst
-- **`wiki/`** — die daraus von Claude aufbereiteten, verlinkten Themen-Dateien (`.md`), die die App unter "Vault" anzeigt und die als eigentliche Wissensdatenbank dienen
+- **`raw-sources/`** — raw, unstructured source material (notes, articles, transcripts, etc.) that you drop in there
+- **`wiki/`** — the linked topic files (`.md`) Claude produces from that material, shown under "Vault" and serving as the actual knowledge base
 
-Jeder Klick auf eine Aktion (z. B. "Wiki neu bauen") startet `claude` mit `cwd` = dem aktiven Vault-Ordner. Claude liest also direkt aus `raw-sources/`, schreibt/aktualisiert Dateien in `wiki/` und pflegt eine `log.md` mit, welche Quellen bereits verarbeitet wurden. Die App selbst verändert keine Vault-Inhalte über Dateizugriffe — sie schickt nur Prompts an Claude und zeigt Ergebnisse/Dateien lesend an.
+Every click on an action (e.g. "Rebuild wiki") starts `claude` with `cwd` set to the active vault folder. Claude reads directly from `raw-sources/`, writes/updates files in `wiki/`, and maintains a `log.md` of which sources it has already processed. The app itself never touches vault content via file access — it only sends prompts to Claude and displays results/files read-only.
 
 ## Features
 
-- **Chat** — mehrere parallele, benannte Chat-Threads (wie bei claude.ai) über eine eigene Liste links im Chat-Bereich; jeder Thread führt seine eigene `claude --continue`-Konversation. Antworten werden live gestreamt und als Markdown gerendert. Ein Stopp-Button bricht einen laufenden Prompt ab. Alle Threads werden lokal in `history.json` gespeichert und beim nächsten Start wiederhergestellt.
-  - **Prompt-Verlauf**: Pfeil-hoch/-runter im Eingabefeld blättert durch zuletzt gesendete Prompts (pro Gerät in `localStorage`)
-  - **"Nach unten springen"**-Button erscheint, wenn man beim Streamen hochgescrollt hat
-  - **Copy-Button** auf jeder Chat-Bubble kopiert den Text in die Zwischenablage
-  - **@-Mentions**: `@dateiname` im Prompt tippen öffnet eine Auswahl aus Vault-Dateien; der Inhalt wird beim Senden automatisch als Kontext angehängt (im Chat bleibt nur `@dateiname` sichtbar)
-  - **Bild-Anhänge**: 📎-Button oder ein Bild ins Eingabefeld ziehen; der Dateipfad wird Claude als Leseauftrag mitgegeben, der es über das Read-Tool analysiert
-  - **Exportieren**-Button speichert den aktuellen Chat als Markdown-Datei
-  - **Presets**: dem Prompt fest vorangestellter Kontext (z. B. Sprache/Ton), verwaltbar unter Einstellungen → Chat-Presets, auswählbar per Dropdown im Chat
-  - Begrüßungstext bei leerem Chat wechselt zufällig zwischen mehreren Varianten (pro Sitzung stabil)
-- **Aktionen** — frei konfigurierbare Prompt-Buttons in der Sidebar (Verwaltung unter Einstellungen → Aktionen), vorbelegt mit vier Beispielen: Wiki neu bauen, Neue Sources einarbeiten, Thema erweitern, Brain-Suche. Ein Prompt mit `{input}` fragt beim Klick per Dialog nach einem Wert. Nach jeder Aktion wird automatisch geprüft, ob sich im Vault etwas geändert hat (`git diff`) und als Review-Dialog angezeigt.
-- **Command Palette** (Strg+P) — Schnellsuche über alle Ansichten und Aktionen
-- **Usage** — Session- und Wochenlimit von Claude Code auf einen Blick (`/usage`)
-- **Vault** — Übersicht über vorhandene Wiki-Themen und Rohquellen, mit Datei- und Volltextsuche (Strg+K); Klick auf einen Eintrag öffnet den Dateiinhalt (Markdown gerendert bei `.md`) mit Umbenennen/Löschen. Dateien lassen sich per Drag & Drop auf die Rohquellen-Spalte direkt importieren. Wiki-Themen und Rohquellen lassen sich anheften (★) — angeheftete Einträge erscheinen oben in der Liste. Weitere Tabs:
-  - **Graph** — visualisiert die `[[topic-name]]`-Verlinkungen zwischen Wiki-Dateien
-  - **Git-Verlauf** — Commit-Liste inkl. Diff-Ansicht pro Commit
-  - **Papierkorb** — gelöschte Dateien wiederherstellen oder endgültig entfernen
-- **Verlauf** — bisherige Claude-Code-Sessions im aktiven Vault durchstöbern, inkl. Volltextsuche über den Gesprächsinhalt, Anheften wichtiger Sessions und Export einer Session als Markdown
-- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), Design-Theme, **Sprache** (Deutsch/Englisch) und Claude-Modell wählen, Sidebar-Aktionen und Chat-Presets verwalten, automatisches Sync konfigurieren, Einstellungen als JSON sichern/wiederherstellen, Autostart mit Windows und Updates:
-  - beim App-Start automatisch "Neue Sources" ausführen
-  - und/oder in einem festen Intervall (Minuten) im Hintergrund
-- **Themes** — vier Farbschemata zur Auswahl (Sunset, Midnight, Forest, Light), gespeichert in `config.json` und beim nächsten Start automatisch wieder aktiv
-- **Autostart** — optional startet die App automatisch beim Windows-Login, minimiert im Tray (Einstellungen → App-Start)
-- **Automatische Updates** — die installierte App prüft beim Start und auf Knopfdruck (Einstellungen → Über) selbstständig auf neue Versionen, lädt sie im Hintergrund herunter und installiert sie nach Bestätigung — kein manuelles Herunterladen/Installieren nötig. Funktioniert nur in der installierten App, nicht im Entwicklungsmodus (`npm start`).
-- **Tray-Icon** — die App läuft im Hintergrund weiter, wenn das Fenster geschlossen wird (siehe Hinweis unten); über das Tray-Menü lässt sich "Neue Sources" auch ohne offenes Fenster anstoßen
-- **Desktop-Benachrichtigungen** — wenn ein Prompt oder Auto-Sync fertig ist, während das Fenster nicht fokussiert ist
-- **Onboarding** — beim allerersten Start (oder wenn der aktive Vault-Ordner nicht existiert) führt ein kurzer Dialog durch die Vault-Auswahl, statt stillschweigend mit einem Platzhalterpfad zu laufen
-- **Tastenkürzel** — siehe [eigener Abschnitt](#tastenkürzel)
+- **Chat** — multiple parallel, named chat threads (like claude.ai) via a dedicated list on the left of the chat area; each thread runs its own `claude --continue` conversation. Responses stream live and render as markdown. A stop button cancels a running prompt. All threads are saved locally to `history.json` and restored on next launch.
+  - **Prompt history**: arrow up/down in the input field cycles through recently sent prompts (per device, in `localStorage`)
+  - **"Jump to bottom"** button appears when you've scrolled up while streaming
+  - **Copy button** on every chat bubble copies its text to the clipboard
+  - **@-mentions**: typing `@filename` in a prompt opens a picker of vault files; the content is automatically attached as context when sending (only `@filename` stays visible in the chat)
+  - **Image attachments**: the 📎 button, or dragging an image into the input field; the file path is handed to Claude as a read instruction, which it analyzes via its Read tool
+  - **Export** button saves the current chat as a markdown file
+  - **Presets**: fixed context prepended to the prompt (e.g. language/tone), managed under Settings → Chat Presets, selectable from a dropdown in the chat
+  - The empty-chat greeting randomly picks one of several variants (stable for the session)
+- **Actions** — freely configurable prompt buttons in the sidebar (managed under Settings → Actions), pre-seeded with four examples: Rebuild wiki, Integrate new sources, Expand topic, Brain search. A prompt containing `{input}` asks for a value via dialog on click. After every action, the app automatically checks whether anything changed in the vault (`git diff`) and shows it as a review dialog.
+- **Command Palette** (Ctrl+P) — quick search across all views and actions
+- **Usage** — session and weekly limit of Claude Code at a glance (`/usage`)
+- **Vault** — overview of existing wiki topics and raw sources, with filename and full-text search (Ctrl+K); clicking an entry opens the file content (rendered as markdown for `.md`) with rename/delete. Files can be imported by dragging them onto the raw-sources column. Wiki topics and raw sources can be pinned (★) — pinned entries appear at the top of the list. Further tabs:
+  - **Graph** — visualizes the `[[topic-name]]` links between wiki files
+  - **Git History** — commit list including a diff view per commit
+  - **Trash** — restore deleted files or remove them permanently
+- **History** — browse past Claude Code sessions in the active vault, including full-text search over the conversation content, pinning important sessions, and exporting a session as markdown
+- **Settings** — create/edit/delete multiple vaults and switch the active one (including a folder picker), choose a theme, **language** (German/English), and Claude model, manage sidebar actions and chat presets, configure automatic sync, back up/restore settings as JSON, Windows autostart, and updates:
+  - automatically run "New Sources" on app start
+  - and/or on a fixed interval (minutes) in the background
+- **Themes** — four color schemes to choose from (Sunset, Midnight, Forest, Light), stored in `config.json` and active again automatically on next launch
+- **Autostart** — optionally launches the app automatically at Windows login, minimized to the tray (Settings → App Startup)
+- **Automatic updates** — the installed app checks for new versions on launch and on demand (Settings → About), downloads them in the background, and installs them after confirmation — no manual download/install needed. Only works in the installed app, not in development mode (`npm start`).
+- **Tray icon** — the app keeps running in the background when the window is closed (see note below); the tray menu can also trigger "New Sources" without an open window
+- **Desktop notifications** — when a prompt or auto-sync finishes while the window isn't focused
+- **Onboarding** — on the very first launch (or if the active vault folder doesn't exist), a short dialog walks you through picking a vault instead of silently running with a placeholder path
+- **Keyboard shortcuts** — see the [dedicated section](#keyboard-shortcuts)
 
-Laufende Prompts geben stderr-Ausgaben als eigene, farblich abgesetzte Fehler-Bubbles im Chat aus, statt sie stillschweigend im Output zu verstecken.
+Running prompts emit stderr output as their own, color-coded error bubbles in the chat instead of silently hiding it in the output.
 
-## Tastenkürzel
+## Keyboard Shortcuts
 
-**Global** (überall in der App)
+**Global** (anywhere in the app)
 
-| Kürzel | Wirkung |
+| Shortcut | Effect |
 | --- | --- |
-| `Strg+N` | Neuer Chat-Thread (springt zur Chat-Ansicht) |
-| `Strg+K` | Zur Vault-Ansicht springen und das Suchfeld fokussieren |
-| `Strg+P` | Command Palette öffnen |
+| `Ctrl+N` | New chat thread (jumps to the chat view) |
+| `Ctrl+K` | Jump to the vault view and focus the search field |
+| `Ctrl+P` | Open the command palette |
 
-**Chat-Eingabefeld**
+**Chat input field**
 
-| Kürzel | Wirkung |
+| Shortcut | Effect |
 | --- | --- |
-| `Enter` | Prompt senden |
-| `↑` | Vorherigen Prompt aus dem Verlauf einsetzen |
-| `↓` | Nächsten Prompt einsetzen bzw. zurück zum ungesendeten Entwurf |
+| `Enter` | Send the prompt |
+| `↑` | Insert the previous prompt from history |
+| `↓` | Insert the next prompt, or restore the unsent draft |
 
-**Command Palette** (während sie geöffnet ist)
+**Command Palette** (while open)
 
-| Kürzel | Wirkung |
+| Shortcut | Effect |
 | --- | --- |
-| Tippen | Befehle live filtern |
-| `Enter` | Obersten (ersten) Treffer ausführen |
-| `Esc` | Schließen |
+| Typing | Filters commands live |
+| `Enter` | Run the top (first) result |
+| `Esc` | Close |
 
-**Modals** (Datei-Viewer, Git-Diff)
+**Modals** (file viewer, git diff)
 
-| Kürzel | Wirkung |
+| Shortcut | Effect |
 | --- | --- |
-| `Esc` | Schließen |
+| `Esc` | Close |
 
-**Vault- / Verlauf-Suchfeld**
+**Vault / History search field**
 
-| Kürzel | Wirkung |
+| Shortcut | Effect |
 | --- | --- |
-| `Enter` | Volltextsuche im Inhalt starten |
+| `Enter` | Start the full-text content search |
 
-**Sonstige Interaktionen**
+**Other interactions**
 
-| Aktion | Wirkung |
+| Action | Effect |
 | --- | --- |
-| Doppelklick auf einen Chat-Thread | Thread umbenennen |
+| Double-click a chat thread | Rename it |
 
-## Voraussetzungen
+## Requirements
 
-- [Claude Code CLI](https://docs.claude.com/claude-code) installiert und im `PATH` (`claude` muss aus dem Terminal aufrufbar sein)
+- [Claude Code CLI](https://docs.claude.com/claude-code) installed and on `PATH` (`claude` must be callable from a terminal)
 - Node.js
-- Mindestens ein Obsidian-Vault (oder ein beliebiger Ordner) mit `wiki/` und `raw-sources/` Unterordnern
-- `git` optional, aber nötig für den Home-Graph (Commit-Aktivität) und den Git-Verlauf-Tab im Vault — ohne Git-Repo im Vault bleiben diese beiden einfach leer
+- At least one Obsidian vault (or any folder) with `wiki/` and `raw-sources/` subfolders
+- `git` is optional, but needed for the home-view chart (commit activity) and the vault's Git History tab — without a git repo in the vault, both simply stay empty
 
 ## Setup
 
@@ -118,7 +118,7 @@ Laufende Prompts geben stderr-Ausgaben als eigene, farblich abgesetzte Fehler-Bu
 npm install
 ```
 
-`config.json` wird beim ersten Start automatisch im Benutzerdaten-Ordner angelegt (`%APPDATA%\Brain\config.json` unter Windows — **nicht** im Installationsordner, siehe [`config.json`-Referenz](#configjson-referenz)), mit einem Platzhalter-Vaultpfad, der über den Onboarding-Dialog beim ersten Start sofort ersetzt wird. Alles Weitere läuft über die **Einstellungen**-Ansicht in der App — manuelles Bearbeiten der Datei ist nie nötig, auch nach der Installation über den Installer nicht. Ein bereits vorhandenes altes `config.json` im Format `{ "vaultPath": "..." }` wird beim Start automatisch ins neue Multi-Vault-Format migriert.
+`config.json` is created automatically on first launch in the per-user data directory (`%APPDATA%\Brain\config.json` on Windows — **not** the install folder, see [`config.json` Reference](#configjson-reference)), with a placeholder vault path that the first-run onboarding dialog immediately replaces. Everything else runs through the **Settings** view in the app — manually editing the file is never necessary, including after installing via the installer. An existing old-format `config.json` (`{ "vaultPath": "..." }`) is automatically migrated to the new multi-vault format on startup.
 
 ## Start
 
@@ -126,45 +126,45 @@ npm install
 npm start
 ```
 
-Baut das React-Frontend mit Vite und startet danach Electron.
+Builds the React frontend with Vite and then launches Electron.
 
-Für die Entwicklung am UI allein (im Browser, ohne Electron) steht außerdem `npm run dev` bereit — startet den Vite-Dev-Server mit Hot Reload, allerdings ohne `window.claudeAPI` (die kommt nur aus dem Electron-Preload).
+For UI-only development (in a browser, without Electron), `npm run dev` is also available — starts the Vite dev server with hot reload, but without `window.claudeAPI` (which only comes from the Electron preload).
 
-## Installer bauen
+## Building an Installer
 
 ```bash
 npm run dist
 ```
 
-Baut das Frontend und packt die App via `electron-builder` zu einer Windows-Installer-`.exe` in `release/`.
+Builds the frontend and packages the app via `electron-builder` into a Windows installer `.exe` under `release/`.
 
-> **Hinweis für Windows:** `electron-builder` lädt für Windows-Builds ein Tool-Paket herunter (u. a. `rcedit`, zum Einbetten von Icon/Versionsinfo in die `.exe` — das passiert auch ohne Codesignatur). Das Entpacken dieses Archivs legt symbolische Links an, was ohne aktivierten **Entwicklermodus** (Einstellungen → Datenschutz & Sicherheit → Für Entwickler) oder ohne Terminal **"Als Administrator ausführen"** mit `Cannot create symbolic link` fehlschlägt — einmal eines von beiden aktivieren, dann läuft's. (Die Umgebungsvariable `CSC_IDENTITY_AUTO_DISCOVERY=false` hilft hier trotz anderslautender Tipps im Netz **nicht**, da sie nur die Signatur-Identitätssuche betrifft, nicht diesen Download.)
+> **Windows note:** `electron-builder` downloads a tool package for Windows builds (including `rcedit`, used to embed the icon/version info into the `.exe` — this happens regardless of code signing). Extracting that archive creates symbolic links, which fails with `Cannot create symbolic link` unless **Developer Mode** is enabled (Settings → Privacy & security → For developers) or the terminal is run **"as Administrator"** — enable either once and it'll work. (Despite tips floating around online, the `CSC_IDENTITY_AUTO_DISCOVERY=false` env var does **not** help here — it only affects signing-identity discovery, not this download.)
 
-### Release veröffentlichen (automatisch via GitHub Actions)
+### Publishing a release (automated via GitHub Actions)
 
-Ein Push eines `v*`-Tags baut den Installer auf einem GitHub-gehosteten Windows-Runner und veröffentlicht ihn automatisch als GitHub Release (inkl. `latest.yml` fürs Auto-Update) — kein manuelles `npm run dist` oder Hochladen nötig:
+Pushing a `v*` tag builds the installer on a GitHub-hosted Windows runner and publishes it automatically as a GitHub Release (including `latest.yml` for auto-update) — no manual `npm run dist` or uploading needed:
 
 ```bash
-npm version 1.0.1   # bumpt die Version in package.json UND legt den Git-Tag v1.0.1 an
+npm version 1.0.1   # bumps the version in package.json AND creates the git tag v1.0.1
 git push && git push --tags
 ```
 
-Wichtig: `npm version` verwenden statt den Tag von Hand zu setzen — `electron-builder` liest die Versionsnummer für Dateiname und Release-Tag aus `package.json`, nicht aus dem Git-Tag selbst. Ein Tag ohne passende Versionsbump in `package.json` führt zu einem Release unter der falschen Versionsnummer.
+Important: use `npm version` rather than tagging by hand — `electron-builder` reads the version number for the filename and release tag from `package.json`, not from the git tag itself. A tag pushed without a matching version bump in `package.json` produces a release under the wrong version number.
 
-Der Workflow liegt in [`.github/workflows/release.yml`](.github/workflows/release.yml) und braucht keine zusätzlichen Secrets — er nutzt das von GitHub Actions automatisch bereitgestellte `GITHUB_TOKEN`. Ein zweiter Workflow, [`.github/workflows/ci.yml`](.github/workflows/ci.yml), baut bei jedem Push/PR auf `main` das Frontend und prüft `main.js`/`preload.js` auf Syntaxfehler — als schnelle Absicherung, unabhängig vom eigentlichen Release.
+The workflow lives at [`.github/workflows/release.yml`](.github/workflows/release.yml) and needs no extra secrets — it uses the `GITHUB_TOKEN` GitHub Actions provides automatically. A second workflow, [`.github/workflows/ci.yml`](.github/workflows/ci.yml), builds the frontend and syntax-checks `main.js`/`preload.js` on every push/PR to `main`, as a fast sanity check independent of the actual release.
 
 ## Tech Stack
 
-- **Electron** — Desktop-Shell, Main-Prozess in `main.js`, IPC-Bridge in `preload.js`
-- **React (JSX)** — komplettes UI in `src/` (`App.jsx` + `src/components/`), gebaut mit **Vite**
-- **cross-spawn** — startet `claude`/`git` ohne Shell-Interpolation (verhindert Command-Injection über den Prompt-Text)
-- **react-markdown** — Rendering von Claude-Antworten und Wiki-Dateien
-- Eigenes, leichtgewichtiges i18n (React Context in `src/i18n.jsx`) für Deutsch/Englisch — keine externe Bibliothek
-- Kein TypeScript — reines JSX
+- **Electron** — desktop shell, main process in `main.js`, IPC bridge in `preload.js`
+- **React (JSX)** — the entire UI lives in `src/` (`App.jsx` + `src/components/`), built with **Vite**
+- **cross-spawn** — launches `claude`/`git` without shell interpolation (prevents command injection via the prompt text)
+- **react-markdown** — renders Claude's responses and wiki files
+- Custom, lightweight i18n (React Context in `src/i18n.jsx`) for German/English — no external library
+- No TypeScript — plain JSX
 
-## `config.json`-Referenz
+## `config.json` Reference
 
-Liegt unter `app.getPath('userData')` — unter Windows `%APPDATA%\Brain\config.json` —, **nicht** im Installationsordner der App. Das ist bei einer installierten App absichtlich so: Der Installationsordner ist bei einem normalen Nutzerkonto meist schreibgeschützt (z. B. `Program Files`) und wird bei jedem Update/jeder Neuinstallation ersetzt, während der Benutzerdaten-Ordner erhalten bleibt. `history.json` und `stats.json` liegen im selben Ordner. Wird automatisch angelegt und migriert — manuelles Bearbeiten ist normalerweise nicht nötig (alles läuft über die Einstellungen-Ansicht bzw. den Onboarding-Dialog), aber zum Nachschlagen:
+Lives under `app.getPath('userData')` — `%APPDATA%\Brain\config.json` on Windows —, **not** the app's install folder. That's deliberate for an installed app: the install folder is typically read-only for a regular user account (e.g. `Program Files`) and gets replaced on every update/reinstall, while the user-data folder persists. `history.json` and `stats.json` live in the same folder. Created and migrated automatically — manually editing it usually isn't necessary (everything runs through the Settings view or the onboarding dialog), but for reference:
 
 ```json
 {
@@ -183,48 +183,48 @@ Liegt unter `app.getPath('userData')` — unter Windows `%APPDATA%\Brain\config.
     { "id": "wiki-rebuild", "label": "Wiki neu bauen", "prompt": "..." }
   ],
   "chatPresets": [
-    { "id": "...", "label": "Englisch, knapp", "systemPrompt": "Reply in English, be concise." }
+    { "id": "...", "label": "English, concise", "systemPrompt": "Reply in English, be concise." }
   ],
   "language": "de",
   "pins": { "wiki": [], "sources": [], "sessions": [] }
 }
 ```
 
-| Feld | Bedeutung |
+| Field | Meaning |
 | --- | --- |
-| `vaults` | Liste aller angelegten Vaults (`name` + `path`) |
-| `activeVault` | Name des gerade aktiven Vaults aus `vaults` |
+| `vaults` | List of all configured vaults (`name` + `path`) |
+| `activeVault` | Name of the currently active vault from `vaults` |
 | `theme` | `sunset` \| `midnight` \| `forest` \| `light` |
-| `model` | Leer = CLI-Standard, sonst `sonnet` \| `opus` \| `haiku` (als `--model`-Flag an `claude` durchgereicht) |
-| `autoSync.enabled` / `.intervalMinutes` | Automatisches "Neue Sources" in festem Intervall |
-| `autoSync.runOnStartup` | Automatisches "Neue Sources" beim App-Start (einmalig) |
-| `customActions` | Sidebar-Buttons; `prompt` darf `{input}` enthalten für eine Dialog-Abfrage beim Klick |
-| `chatPresets` | Im Chat wählbare Kontext-Vorlagen; `systemPrompt` wird jedem gesendeten Prompt vorangestellt |
-| `language` | `de` \| `en` — steuert die komplette App-Oberfläche |
-| `pins` | Angeheftete Wiki-/Source-Dateinamen bzw. Session-IDs, pro Kategorie als Array |
+| `model` | Empty = CLI default, otherwise `sonnet` \| `opus` \| `haiku` (passed to `claude` as the `--model` flag) |
+| `autoSync.enabled` / `.intervalMinutes` | Automatic "New Sources" on a fixed interval |
+| `autoSync.runOnStartup` | Automatic "New Sources" on app start (once) |
+| `customActions` | Sidebar buttons; `prompt` may contain `{input}` for a dialog prompt on click |
+| `chatPresets` | Context templates selectable in chat; `systemPrompt` is prepended to every sent prompt |
+| `language` | `de` \| `en` — controls the entire app UI |
+| `pins` | Pinned wiki/source filenames or session IDs, as an array per category |
 
 ## Troubleshooting
 
-| Problem | Ursache / Lösung |
+| Problem | Cause / Fix |
 | --- | --- |
-| Chat bleibt bei "Läuft..." hängen, keine Antwort | `claude` ist nicht im `PATH` — im normalen Terminal prüfen, ob `claude -p "hi"` funktioniert |
-| `Cannot create symbolic link` bei `npm run dist` | Windows-Entwicklermodus nicht aktiviert oder Terminal nicht als Administrator gestartet (siehe [Installer bauen](#installer-bauen)) |
-| Home-Graph / Git-Verlauf im Vault bleiben leer | Der Vault-Ordner ist kein Git-Repository, oder `git` ist nicht installiert — beides ist optional, kein Fehler |
-| Fenster verschwindet beim Klick auf X | Kein Bug — die App läuft im Tray weiter (siehe [Hinweise](#hinweise)). Rechtsklick auf das Tray-Icon → "Beenden" für echtes Schließen |
-| Onboarding-Dialog erscheint bei jedem Start erneut | Der eingetragene Vault-Pfad existiert nicht (mehr) auf der Festplatte — Ordner im Dialog neu auswählen |
-| Keine Desktop-Benachrichtigungen | Nur wenn das Fenster nicht fokussiert ist; zusätzlich müssen Windows-Benachrichtigungen für die App erlaubt sein (Einstellungen → Benachrichtigungen) |
-| "Nach Updates suchen" zeigt nur einen Hinweis, tut aber nichts | Läuft im Entwicklungsmodus (`npm start`) — Auto-Update funktioniert nur in der über den Installer installierten App |
-| Autostart-Häkchen in den Einstellungen bleibt wirkungslos | Ebenfalls nur in der installierten App zuverlässig; im Entwicklungsmodus registriert Windows den Eintrag auf den `electron.exe` im `node_modules`-Ordner, was beim nächsten `npm install` verschwinden kann |
+| Chat gets stuck on "Running...", no response | `claude` is not on `PATH` — check in a regular terminal whether `claude -p "hi"` works |
+| `Cannot create symbolic link` during `npm run dist` | Windows Developer Mode not enabled, or the terminal wasn't started as Administrator (see [Building an Installer](#building-an-installer)) |
+| Home chart / vault Git History stay empty | The vault folder isn't a git repository, or `git` isn't installed — both are optional, not an error |
+| The window disappears when clicking X | Not a bug — the app keeps running in the tray (see [Notes](#notes)). Right-click the tray icon → "Quit" to actually close it |
+| The onboarding dialog reappears on every launch | The saved vault path no longer exists on disk — pick the folder again in the dialog |
+| No desktop notifications | Only fires when the window isn't focused; Windows notifications must also be allowed for the app (Settings → Notifications) |
+| "Check for updates" just shows a message but does nothing | Running in development mode (`npm start`) — auto-update only works in the app installed via the installer |
+| The autostart checkbox in Settings has no effect | Also only reliable in the installed app; in development mode Windows registers the login item pointing at the `electron.exe` inside `node_modules`, which can disappear on the next `npm install` |
 
-## Hinweise
+## Notes
 
-- Alle Prompts laufen mit `--allowedTools Bash,Write,Read,Edit` im Kontext des jeweils aktiven Vault-Ordners.
-- `config.json`, `history.json` und `stats.json` liegen im Benutzerdaten-Ordner (`%APPDATA%\Brain` unter Windows, siehe [`config.json`-Referenz](#configjson-referenz)) und sind nie Teil des Repos oder der gepackten App — jede Installation bekommt ihre eigenen, unabhängig von Updates/Neuinstallationen.
-- `dist/` (Vite-Build-Output) und `release/` (electron-builder-Output) werden lokal erzeugt und sind ebenfalls nicht Teil des Repos.
-- Läuft ein automatischer Sync (Intervall oder Start), während du gerade einen Chat mit `--continue` fortführst, zählt der Sync-Lauf für die Claude-CLI als "letzte Konversation". Eine danach gesendete Chat-Nachricht knüpft dann an den Sync-Kontext statt an dein eigentliches Gespräch an — in dem Fall hilft "Neuer Chat" oder kurz warten, bis der Sync durch ist.
-- **Fenster schließen beendet die App nicht mehr** — das X-Symbol minimiert nur ins Tray (Symbol im Infobereich der Taskleiste), damit Auto-Sync im Hintergrund weiterlaufen kann. Echtes Beenden geht nur über "Beenden" im Tray-Menü (Rechtsklick auf das Icon).
-- Beim Drag & Drop im Vault werden Dateien per `webUtils.getPathForFile()` aufgelöst (nicht mehr über das ältere `File.path`, das neuere Electron-Versionen aus Sicherheitsgründen entfernt haben).
-- **"Diff-Vorschau" ist ein Review danach, keine Vorschau davor**: Nach einer Sidebar-Aktion zeigt die App automatisch `git diff` der noch nicht committeten Änderungen im Vault (falls der Vault ein Git-Repo ist). Ein echter Dry-Run vor der Ausführung ist mit `claude -p` nicht möglich, da die CLI keinen entsprechenden Modus anbietet — im Zweifel per `git checkout` manuell zurückrollen.
-- Gelöschte Vault-Dateien landen in `.trash/wiki/` bzw. `.trash/raw-sources/` statt endgültig gelöscht zu werden (wiederherstellbar über den "Papierkorb"-Tab). In einem Git-Repo taucht das als normale Dateiänderung auf — falls unerwünscht, `.trash/` zur `.gitignore` **des Vaults** (nicht dieses Repos) hinzufügen.
-- **Mehrsprachigkeit** deckt die komplette App-Oberfläche ab (Einstellungen → Sprache). Nicht übersetzt werden die vier vorbelegten Sidebar-Aktionen und ihre Prompt-Texte selbst — das sind deine eigenen, editierbaren Inhalte, keine feste UI.
-- **Bild-Anhänge im Chat** funktionieren, indem der Dateipfad an Claude weitergereicht wird, das ihn über sein eingebautes Read-Tool liest und analysiert (dokumentierte Fähigkeit von Claude Code) — es wird kein separates Bild-Upload-Flag der CLI verwendet, da `claude -p` keines anbietet.
+- All prompts run with `--allowedTools Bash,Write,Read,Edit` in the context of the currently active vault folder.
+- `config.json`, `history.json`, and `stats.json` live in the per-user data directory (`%APPDATA%\Brain` on Windows, see [`config.json` Reference](#configjson-reference)) and are never part of the repo or the packaged app — every install gets its own, independent of updates/reinstalls.
+- `dist/` (Vite build output) and `release/` (electron-builder output) are also generated locally and aren't part of the repo.
+- If an automatic sync (interval or startup) runs while you're continuing a chat with `--continue`, the sync run counts as the "most recent conversation" for the Claude CLI. A chat message sent afterward will then follow on from the sync's context instead of your actual conversation — "New Chat" or waiting for the sync to finish helps in that case.
+- **Closing the window no longer quits the app** — the X button just minimizes to the tray (the icon in the taskbar's notification area) so auto-sync can keep running in the background. Actually quitting only works via "Quit" in the tray menu (right-click the icon).
+- Drag-and-drop in the vault resolves files via `webUtils.getPathForFile()` (not the older `File.path`, which newer Electron versions removed for security reasons).
+- **"Diff preview" is a review afterward, not a preview beforehand**: after a sidebar action, the app automatically shows `git diff` of the vault's uncommitted changes (if the vault is a git repo). A true dry run before execution isn't possible with `claude -p`, since the CLI offers no such mode — roll back manually via `git checkout` if needed.
+- Deleted vault files land in `.trash/wiki/` or `.trash/raw-sources/` instead of being permanently deleted (recoverable via the "Trash" tab). In a git repo this shows up as a normal file change — if unwanted, add `.trash/` to the **vault's** `.gitignore` (not this repo's).
+- **Multi-language support** covers the entire app UI (Settings → Language). Not translated are the four pre-seeded sidebar actions and their prompt text themselves — those are your own, editable content, not fixed UI.
+- **Image attachments in chat** work by handing Claude the file path, which it reads and analyzes via its built-in Read tool (a documented Claude Code capability) — no separate CLI image-upload flag is used, since `claude -p` doesn't offer one.
