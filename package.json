@@ -1,6 +1,6 @@
 {
   "name": "claude-gui",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Electron desktop GUI for the Claude Code CLI, built around an Obsidian vault.",
   "main": "main.js",
   "scripts": {
