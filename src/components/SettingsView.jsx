@@ -16,6 +16,7 @@ const THEMES = [
   { id: 'sunset', label: 'Sunset', swatch: '#c96442' },
   { id: 'midnight', label: 'Midnight', swatch: '#5b6ee8' },
   { id: 'forest', label: 'Forest', swatch: '#3f9d72' },
+  { id: 'obsidian', label: 'Obsidian', swatch: '#8875ff' },
   { id: 'light', label: 'Light', swatch: '#c96442' },
 ];
 
@@ -27,8 +28,8 @@ const MODELS = [
 ];
 
 const LANGUAGES = [
-  { id: 'de', label: 'Deutsch' },
   { id: 'en', label: 'English' },
+  { id: 'de', label: 'Deutsch' },
 ];
 
 export default function SettingsView({ active, onVaultChanged, onActionsChanged, onPresetsChanged }) {
@@ -45,14 +46,24 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
   const [updateStatus, setUpdateStatus] = useState(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [autoLaunch, setAutoLaunchState] = useState(false);
+  const [userName, setUserNameDraft] = useState('');
   const showToast = useToast();
 
   useEffect(() => {
     if (!active) return;
-    (async () => setConfig(await window.claudeAPI.getConfig()))();
+    (async () => {
+      const fresh = await window.claudeAPI.getConfig();
+      setConfig(fresh);
+      setUserNameDraft(fresh.userName || '');
+    })();
     (async () => setAppVersion(await window.claudeAPI.getAppVersion()))();
     (async () => setAutoLaunchState(await window.claudeAPI.getAutoLaunch()))();
   }, [active]);
+
+  async function saveUserName() {
+    const updated = await window.claudeAPI.setUserName(userName.trim());
+    setConfig(updated);
+  }
 
   useEffect(() => {
     window.claudeAPI.onUpdateStatus((data) => {
@@ -222,7 +233,6 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
       setUpdateStatus({ status: 'dev-mode' });
       setCheckingUpdate(false);
     }
-    // otherwise wait for the 'update-status' event to arrive and clear checkingUpdate
   }
 
   async function handleInstallUpdate() {
@@ -260,6 +270,19 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
           <div id="greeting">{t('settings.title')}</div>
           <div id="greeting-sub">{t('settings.subtitle')}</div>
         </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-label">{t('settings.profileTitle')}</div>
+        <div className="settings-hint" style={{ marginBottom: 10 }}>{t('settings.yourNameHint')}</div>
+        <input
+          className="settings-input"
+          style={{ width: 260 }}
+          placeholder={t('settings.namePlaceholderProfile')}
+          value={userName}
+          onChange={(e) => setUserNameDraft(e.target.value)}
+          onBlur={saveUserName}
+        />
       </div>
 
       <div className="settings-section">

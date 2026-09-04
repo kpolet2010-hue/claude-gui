@@ -60,7 +60,6 @@ export default function App() {
     (async () => {
       const raw = await window.claudeAPI.loadHistory();
       if (Array.isArray(raw) && raw.length) {
-        // Legacy single-thread format: wrap the flat message list into one thread.
         const id = crypto.randomUUID();
         setThreads([{ id, title: deriveTitle(raw), messages: raw }]);
         setActiveThreadId(id);
@@ -156,7 +155,6 @@ export default function App() {
       streamingAssistantIdRef.current = null;
       streamingErrorIdRef.current = null;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function runPrompt(prompt, displayText = prompt, options = {}) {

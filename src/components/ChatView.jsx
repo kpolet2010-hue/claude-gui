@@ -46,6 +46,7 @@ export default function ChatView({
   const [presets, setPresets] = useState([]);
   const [presetId, setPresetId] = useState('');
   const [attachment, setAttachment] = useState(null);
+  const [userName, setUserName] = useState('');
   const [greetingIndex] = useState(() => Math.floor(Math.random() * GREETING_COUNT));
   const outputRef = useRef(null);
   const inputRef = useRef(null);
@@ -71,6 +72,7 @@ export default function ChatView({
     (async () => {
       const config = await window.claudeAPI.getConfig();
       setPresets(config.chatPresets || []);
+      setUserName(config.userName || '');
     })();
   }, [active, presetsVersion]);
 
@@ -287,7 +289,11 @@ export default function ChatView({
             <div id="output" ref={outputRef} onScroll={handleScroll}>
               {messages.length === 0 ? (
                 <div className="chat-empty-state">
-                  <div className="chat-empty-greeting">{t(`chat.greeting${greetingIndex + 1}`)}</div>
+                  <div className="chat-empty-greeting">
+                    {userName
+                      ? t(`chat.greeting${greetingIndex + 1}`, { name: userName })
+                      : t(`chat.greeting${greetingIndex + 1}Generic`)}
+                  </div>
                   <div className="chat-empty-sub">{t(`chat.greeting${greetingIndex + 1}Sub`)}</div>
                 </div>
               ) : (

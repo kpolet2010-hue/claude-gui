@@ -4,6 +4,7 @@ import { useT } from '../i18n.jsx';
 export default function Onboarding({ vaultName, onComplete }) {
   const t = useT();
   const [vaultPath, setVaultPath] = useState('');
+  const [name, setName] = useState('');
 
   async function browse() {
     const picked = await window.claudeAPI.pickFolder();
@@ -13,6 +14,7 @@ export default function Onboarding({ vaultName, onComplete }) {
   async function finish() {
     if (!vaultPath.trim()) return;
     await window.claudeAPI.updateVault(vaultName, vaultName, vaultPath.trim());
+    if (name.trim()) await window.claudeAPI.setUserName(name.trim());
     onComplete();
   }
 
@@ -37,6 +39,18 @@ export default function Onboarding({ vaultName, onComplete }) {
             {t('settings.browse')}
           </button>
         </div>
+
+        <label className="settings-hint" style={{ display: 'block', marginTop: 18, marginBottom: 6 }}>
+          {t('onboarding.nameLabel')}
+        </label>
+        <input
+          className="settings-input"
+          style={{ width: '100%' }}
+          placeholder={t('onboarding.namePlaceholder')}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+
         <button
           className="preset-btn"
           style={{ width: 'auto', marginTop: 18, padding: '10px 20px' }}

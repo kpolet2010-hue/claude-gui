@@ -1,6 +1,6 @@
 # Brain
 
-*[Deutsche Version](README.md)*
+*[Deutsche Version](README.de.md)*
 
 An Electron desktop GUI for the locally installed [`claude` CLI](https://docs.claude.com/claude-code), built for working with one or more personal Obsidian vaults.
 
@@ -51,7 +51,7 @@ Every click on an action (e.g. "Rebuild wiki") starts `claude` with `cwd` set to
 - **Settings** — create/edit/delete multiple vaults and switch the active one (including a folder picker), choose a theme, **language** (German/English), and Claude model, manage sidebar actions and chat presets, configure automatic sync, back up/restore settings as JSON, Windows autostart, and updates:
   - automatically run "New Sources" on app start
   - and/or on a fixed interval (minutes) in the background
-- **Themes** — four color schemes to choose from (Sunset, Midnight, Forest, Light), stored in `config.json` and active again automatically on next launch
+- **Themes** — five color schemes to choose from (Sunset, Midnight, Forest, Obsidian, Light), stored in `config.json` and active again automatically on next launch
 - **Autostart** — optionally launches the app automatically at Windows login, minimized to the tray (Settings → App Startup)
 - **Automatic updates** — the installed app checks for new versions on launch and on demand (Settings → About), downloads them in the background, and installs them after confirmation — no manual download/install needed. Only works in the installed app, not in development mode (`npm start`).
 - **Tray icon** — the app keeps running in the background when the window is closed (see note below); the tray menu can also trigger "New Sources" without an open window

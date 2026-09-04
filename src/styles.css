@@ -72,6 +72,29 @@
   --chart-alt: #e0b04f;
 }
 
+/* Theme: Obsidian (dark, violet accent — matches the Obsidian app's default dark theme) */
+:root[data-theme="obsidian"] {
+  --bg: #1e1e1e;
+  --bg-sidebar: #161616;
+  --surface: #262626;
+  --surface-hover: #2a2a2a;
+
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --text-primary: #dcddde;
+  --text-secondary: #999999;
+  --text-tertiary: #6c6c6c;
+
+  --accent: #8875ff;
+  --accent-soft: rgba(136, 117, 255, 0.16);
+  --accent-text: #a996ff;
+
+  --success: #7a9b74;
+  --warning: #c99a3f;
+  --chart-alt: #e0a458;
+}
+
 /* Theme: Light */
 :root[data-theme="light"] {
   --bg: #f7f6f3;
@@ -129,7 +152,6 @@ html, body {
   background: #303031;
 }
 
-/* Grain texture overlay across the whole app */
 body {
   position: relative;
 }

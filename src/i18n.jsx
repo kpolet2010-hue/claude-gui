@@ -19,7 +19,8 @@ const dictionaries = {
     'sidebar.status.ready': 'Bereit',
     'sidebar.action.inputPrompt': 'Eingabe für "{label}"',
 
-    'home.greeting': 'Hey Kiano',
+    'home.greeting': 'Hey {name}',
+    'home.greetingGeneric': 'Willkommen zurück',
     'home.greetingSub': 'Willkommen zurück in deinem Brain',
     'home.sessionUsage': 'Session Usage',
     'home.weeklyLimit': 'Wochenlimit',
@@ -29,21 +30,29 @@ const dictionaries = {
     'home.legendPrompts': 'Prompts (dein Brain-Tool)',
     'home.legendGit': 'Git-Commits (Vault-Aktivität)',
 
-    'chat.greeting1': 'Hallo, Kiano',
+    'chat.greeting1': 'Hallo, {name}',
+    'chat.greeting1Generic': 'Hallo',
     'chat.greeting1Sub': 'Womit fangen wir heute an?',
-    'chat.greeting2': 'Was steht heute an, Kiano?',
+    'chat.greeting2': 'Was steht heute an, {name}?',
+    'chat.greeting2Generic': 'Was steht heute an?',
     'chat.greeting2Sub': 'Ich bin bereit.',
-    'chat.greeting3': 'Hey Kiano',
+    'chat.greeting3': 'Hey {name}',
+    'chat.greeting3Generic': 'Hey',
     'chat.greeting3Sub': 'Woran arbeiten wir?',
-    'chat.greeting4': 'Willkommen zurück, Kiano',
+    'chat.greeting4': 'Willkommen zurück, {name}',
+    'chat.greeting4Generic': 'Willkommen zurück',
     'chat.greeting4Sub': 'Was schaffen wir heute?',
-    'chat.greeting5': 'Schön dich zu sehen, Kiano',
+    'chat.greeting5': 'Schön dich zu sehen, {name}',
+    'chat.greeting5Generic': 'Schön, dass du da bist',
     'chat.greeting5Sub': 'Wo fangen wir an?',
-    'chat.greeting6': 'Hi Kiano',
+    'chat.greeting6': 'Hi {name}',
+    'chat.greeting6Generic': 'Hi',
     'chat.greeting6Sub': 'Erzähl mir, was ansteht.',
-    'chat.greeting7': 'Da bist du ja, Kiano',
+    'chat.greeting7': 'Da bist du ja, {name}',
+    'chat.greeting7Generic': 'Da bist du ja',
     'chat.greeting7Sub': 'Was gibt es zu tun?',
-    'chat.greeting8': 'Guten Tag, Kiano',
+    'chat.greeting8': 'Guten Tag, {name}',
+    'chat.greeting8Generic': 'Guten Tag',
     'chat.greeting8Sub': 'Wie kann ich helfen?',
     'chat.title': 'Chat',
     'chat.subtitle': 'Was steht heute an?',
@@ -186,10 +195,16 @@ const dictionaries = {
     'settings.minVaultError': 'Mindestens ein Vault muss bestehen bleiben.',
     'settings.startTitle': 'App-Start',
     'settings.autoLaunch': 'Beim Windows-Start automatisch starten (minimiert im Tray)',
+    'settings.profileTitle': 'Profil',
+    'settings.yourName': 'Dein Name',
+    'settings.yourNameHint': 'Wird in Begrüßungen auf Home und im Chat verwendet. Leer lassen für neutrale Begrüßungen ohne Namen.',
+    'settings.namePlaceholderProfile': 'z. B. Alex',
 
     'onboarding.title': 'Willkommen',
     'onboarding.description': 'Wähle deinen Obsidian-Vault-Ordner, um loszulegen. Er sollte (oder wird) die Unterordner wiki/ und raw-sources/ enthalten.',
     'onboarding.pathPlaceholder': 'Pfad zu deinem Vault',
+    'onboarding.nameLabel': 'Wie sollen wir dich nennen? (optional)',
+    'onboarding.namePlaceholder': 'Dein Name',
     'onboarding.start': 'Loslegen',
 
     'palette.placeholder': 'Befehl suchen...',
@@ -218,7 +233,8 @@ const dictionaries = {
     'sidebar.status.ready': 'Ready',
     'sidebar.action.inputPrompt': 'Input for "{label}"',
 
-    'home.greeting': 'Hey Kiano',
+    'home.greeting': 'Hey {name}',
+    'home.greetingGeneric': 'Welcome back',
     'home.greetingSub': 'Welcome back to your Brain',
     'home.sessionUsage': 'Session Usage',
     'home.weeklyLimit': 'Weekly Limit',
@@ -228,21 +244,29 @@ const dictionaries = {
     'home.legendPrompts': 'Prompts (your Brain tool)',
     'home.legendGit': 'Git commits (vault activity)',
 
-    'chat.greeting1': 'Hello, Kiano',
+    'chat.greeting1': 'Hello, {name}',
+    'chat.greeting1Generic': 'Hello',
     'chat.greeting1Sub': 'What shall we start with today?',
-    'chat.greeting2': "What's on the agenda today, Kiano?",
+    'chat.greeting2': "What's on the agenda today, {name}?",
+    'chat.greeting2Generic': "What's on the agenda today?",
     'chat.greeting2Sub': "I'm ready.",
-    'chat.greeting3': 'Hey Kiano',
+    'chat.greeting3': 'Hey {name}',
+    'chat.greeting3Generic': 'Hey',
     'chat.greeting3Sub': 'What are we working on?',
-    'chat.greeting4': 'Welcome back, Kiano',
+    'chat.greeting4': 'Welcome back, {name}',
+    'chat.greeting4Generic': 'Welcome back',
     'chat.greeting4Sub': 'What are we getting done today?',
-    'chat.greeting5': 'Good to see you, Kiano',
+    'chat.greeting5': 'Good to see you, {name}',
+    'chat.greeting5Generic': 'Good to see you',
     'chat.greeting5Sub': 'Where should we start?',
-    'chat.greeting6': 'Hi Kiano',
+    'chat.greeting6': 'Hi {name}',
+    'chat.greeting6Generic': 'Hi',
     'chat.greeting6Sub': "Tell me what's up.",
-    'chat.greeting7': 'There you are, Kiano',
+    'chat.greeting7': 'There you are, {name}',
+    'chat.greeting7Generic': 'There you are',
     'chat.greeting7Sub': "What's on your plate?",
-    'chat.greeting8': 'Good day, Kiano',
+    'chat.greeting8': 'Good day, {name}',
+    'chat.greeting8Generic': 'Good day',
     'chat.greeting8Sub': 'How can I help?',
     'chat.title': 'Chat',
     'chat.subtitle': "What's on today?",
@@ -385,10 +409,16 @@ const dictionaries = {
     'settings.minVaultError': 'At least one vault must remain.',
     'settings.startTitle': 'App Startup',
     'settings.autoLaunch': 'Start automatically when Windows starts (minimized to tray)',
+    'settings.profileTitle': 'Profile',
+    'settings.yourName': 'Your Name',
+    'settings.yourNameHint': 'Used in greetings on Home and in Chat. Leave empty for name-free greetings.',
+    'settings.namePlaceholderProfile': 'e.g. Alex',
 
     'onboarding.title': 'Welcome',
     'onboarding.description': 'Choose your Obsidian vault folder to get started. It should (or will) contain the wiki/ and raw-sources/ subfolders.',
     'onboarding.pathPlaceholder': 'Path to your vault',
+    'onboarding.nameLabel': 'What should we call you? (optional)',
+    'onboarding.namePlaceholder': 'Your name',
     'onboarding.start': 'Get started',
 
     'palette.placeholder': 'Search command...',
@@ -401,7 +431,7 @@ const dictionaries = {
   },
 };
 
-const LanguageContext = createContext({ language: 'de', setLanguage: () => {}, t: (key) => key });
+const LanguageContext = createContext({ language: 'en', setLanguage: () => {}, t: (key) => key });
 
 export function useT() {
   return useContext(LanguageContext).t;
@@ -413,13 +443,13 @@ export function useLanguage() {
 }
 
 export function LanguageProvider({ children }) {
-  const [language, setLanguageState] = useState('de');
+  const [language, setLanguageState] = useState('en');
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
       const config = await window.claudeAPI.getConfig();
-      setLanguageState(config.language || 'de');
+      setLanguageState(config.language || 'en');
       setLoaded(true);
     })();
   }, []);
@@ -431,8 +461,8 @@ export function LanguageProvider({ children }) {
 
   const t = useCallback(
     (key, vars) => {
-      const dict = dictionaries[language] || dictionaries.de;
-      let str = dict[key] ?? dictionaries.de[key] ?? key;
+      const dict = dictionaries[language] || dictionaries.en;
+      let str = dict[key] ?? dictionaries.en[key] ?? key;
       if (vars) {
         Object.entries(vars).forEach(([k, v]) => {
           str = str.replaceAll(`{${k}}`, v);

@@ -6,21 +6,16 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// Ensures the per-user data directory (e.g. %APPDATA%\Brain) is named after the product rather
-// than the npm package name ("claude-gui"), which is what Electron would use otherwise.
+
 app.setName('Brain');
 
-// Written at runtime, so these must live in the per-user data directory rather than next to the
-// app itself — an installed app's own folder is typically read-only (Program Files) or inside a
-// read-only asar archive, and gets wiped/replaced on every update/reinstall.
+
 let CONFIG_PATH;
 let HISTORY_PATH;
 let STATS_PATH;
 const ICON_PATH = path.join(__dirname, 'icon.png');
 
 function migrateLegacyDataFiles(userDataDir) {
-  // Carries over config/history/stats from the old (pre-userData) location used when this app
-  // was only ever run from source, so existing local data isn't silently lost.
   for (const name of ['config.json', 'history.json', 'stats.json']) {
     const legacyPath = path.join(__dirname, name);
     const newPath = path.join(userDataDir, name);
@@ -28,7 +23,7 @@ function migrateLegacyDataFiles(userDataDir) {
       try {
         fs.copyFileSync(legacyPath, newPath);
       } catch {
-        // read-only install directory (e.g. inside an asar) — nothing to migrate from anyway
+        // ignore errors, e.g. if the legacy file is locked by another process
       }
     }
   }
@@ -78,8 +73,9 @@ function defaultConfig() {
     model: '',
     customActions: DEFAULT_ACTIONS,
     chatPresets: [],
-    language: 'de',
+    language: 'en',
     pins: { wiki: [], sources: [], sessions: [] },
+    userName: '',
   };
 }
 
@@ -92,7 +88,6 @@ function loadConfig() {
 
   const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
 
-  // Migrate the old single-vault format { vaultPath } to the multi-vault format.
   if (raw.vaultPath && !raw.vaults) {
     const migrated = {
       vaults: [{ name: 'Default', path: raw.vaultPath }],
@@ -102,8 +97,9 @@ function loadConfig() {
       model: raw.model || '',
       customActions: raw.customActions || DEFAULT_ACTIONS,
       chatPresets: raw.chatPresets || [],
-      language: raw.language || 'de',
+      language: raw.language || 'en',
       pins: raw.pins || { wiki: [], sources: [], sessions: [] },
+      userName: raw.userName || '',
     };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(migrated, null, 2));
     return migrated;
@@ -117,8 +113,9 @@ function loadConfig() {
     model: raw.model || '',
     customActions: raw.customActions && raw.customActions.length ? raw.customActions : DEFAULT_ACTIONS,
     chatPresets: raw.chatPresets || [],
-    language: raw.language || 'de',
+    language: raw.language || 'en',
     pins: raw.pins || { wiki: [], sources: [], sessions: [] },
+    userName: raw.userName || '',
   };
 }
 
@@ -166,6 +163,19 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
 
+  // Removing the app menu (below) also removes its default DevTools accelerator, so rebind it.
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12') mainWindow.webContents.toggleDevTools();
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Renderer failed to load:', errorCode, errorDescription, validatedURL);
+  });
+
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('Renderer process gone:', details);
+  });
+
   mainWindow.on('close', (event) => {
     if (!app.isQuitting) {
       event.preventDefault();
@@ -178,29 +188,53 @@ function createWindow() {
   }
 }
 
+const MAIN_STRINGS = {
+  en: {
+    trayOpen: 'Open',
+    trayRunNewSources: 'Run New Sources now',
+    trayQuit: 'Quit',
+    notifyResponseDone: 'Claude finished the response.',
+    notifyAutoSyncDone: 'Automatic sync is done.',
+  },
+  de: {
+    trayOpen: 'Öffnen',
+    trayRunNewSources: 'Neue Sources jetzt ausführen',
+    trayQuit: 'Beenden',
+    notifyResponseDone: 'Claude ist mit der Antwort fertig.',
+    notifyAutoSyncDone: 'Automatisches Sync ist fertig.',
+  },
+};
+
+function ms(key) {
+  const lang = configState?.language || 'en';
+  return (MAIN_STRINGS[lang] || MAIN_STRINGS.en)[key];
+}
+
+function buildTrayMenu() {
+  return Menu.buildFromTemplate([
+    {
+      label: ms('trayOpen'),
+      click: () => {
+        mainWindow.show();
+        mainWindow.focus();
+      },
+    },
+    { label: ms('trayRunNewSources'), click: () => runAutoSync() },
+    { type: 'separator' },
+    {
+      label: ms('trayQuit'),
+      click: () => {
+        app.isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+}
+
 function createTray() {
   tray = new Tray(ICON_PATH);
   tray.setToolTip('Brain');
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      {
-        label: 'Öffnen',
-        click: () => {
-          mainWindow.show();
-          mainWindow.focus();
-        },
-      },
-      { label: 'Neue Sources jetzt ausführen', click: () => runAutoSync() },
-      { type: 'separator' },
-      {
-        label: 'Beenden',
-        click: () => {
-          app.isQuitting = true;
-          app.quit();
-        },
-      },
-    ])
-  );
+  tray.setContextMenu(buildTrayMenu());
   tray.on('click', () => {
     mainWindow.show();
     mainWindow.focus();
@@ -228,7 +262,6 @@ function setupAutoUpdater() {
     mainWindow?.webContents.send('update-status', { status: 'error', message: err.message });
   });
 
-  // Check once shortly after launch, in addition to the manual "check for updates" button.
   setTimeout(() => autoUpdater.checkForUpdates(), 5000);
 }
 
@@ -278,7 +311,6 @@ function notifyIfUnfocused(title, body) {
   }
 }
 
-// Tracks the currently running `claude` child process so it can be cancelled.
 let currentProc = null;
 
 function withModel(args) {
@@ -349,7 +381,7 @@ ipcMain.handle('run-claude', async (event, prompt, continueConversation) => {
     onStdout: (text) => event.sender.send('claude-stream', text),
     onStderr: (text) => event.sender.send('claude-stream-error', text),
   });
-  notifyIfUnfocused('Brain', 'Claude ist mit der Antwort fertig.');
+  notifyIfUnfocused('Brain', ms('notifyResponseDone'));
   return result;
 });
 
@@ -796,6 +828,13 @@ ipcMain.handle('set-theme', async (event, theme) => {
 ipcMain.handle('set-language', async (event, language) => {
   configState.language = language;
   saveConfig();
+  if (tray) tray.setContextMenu(buildTrayMenu());
+  return configState;
+});
+
+ipcMain.handle('set-user-name', async (event, userName) => {
+  configState.userName = userName;
+  saveConfig();
   return configState;
 });
 
@@ -917,7 +956,7 @@ async function runAutoSync() {
     onStderr: (text) => mainWindow?.webContents.send('claude-stream-error', text),
   });
   mainWindow?.webContents.send('auto-sync-end');
-  notifyIfUnfocused('Brain', 'Automatisches Sync ist fertig.');
+  notifyIfUnfocused('Brain', ms('notifyAutoSyncDone'));
 }
 
 function scheduleAutoSync() {

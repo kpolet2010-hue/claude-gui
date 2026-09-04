@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld('claudeAPI', {
   exportConfig: () => ipcRenderer.invoke('export-config'),
   importConfig: () => ipcRenderer.invoke('import-config'),
   setLanguage: (language) => ipcRenderer.invoke('set-language', language),
+  setUserName: (userName) => ipcRenderer.invoke('set-user-name', userName),
   togglePin: (category, id) => ipcRenderer.invoke('toggle-pin', { category, id }),
   pickImage: () => ipcRenderer.invoke('pick-image'),
 });

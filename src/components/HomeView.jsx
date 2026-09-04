@@ -29,9 +29,15 @@ export default function HomeView({ active, vaultVersion }) {
   const [weeklyPercent, setWeeklyPercent] = useState(null);
   const [promptStats, setPromptStats] = useState({});
   const [gitStats, setGitStats] = useState({});
+  const [userName, setUserName] = useState('');
 
   useEffect(() => {
     if (!active) return;
+
+    (async () => {
+      const config = await window.claudeAPI.getConfig();
+      setUserName(config.userName || '');
+    })();
 
     (async () => {
       const raw = await window.claudeAPI.getUsage();
@@ -67,7 +73,7 @@ export default function HomeView({ active, vaultVersion }) {
     <div id="home-view" className="view" style={{ display: active ? 'flex' : 'none' }}>
       <div id="topbar">
         <div>
-          <div id="greeting">{t('home.greeting')}</div>
+          <div id="greeting">{userName ? t('home.greeting', { name: userName }) : t('home.greetingGeneric')}</div>
           <div id="greeting-sub">{t('home.greetingSub')}</div>
         </div>
       </div>
