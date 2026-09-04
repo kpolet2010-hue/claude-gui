@@ -48,10 +48,12 @@ Every click on an action (e.g. "Rebuild wiki") starts `claude` with `cwd` set to
   - **Git History** — commit list including a diff view per commit
   - **Trash** — restore deleted files or remove them permanently
 - **History** — browse past Claude Code sessions in the active vault, including full-text search over the conversation content, pinning important sessions, and exporting a session as markdown
-- **Settings** — create/edit/delete multiple vaults and switch the active one (including a folder picker), choose a theme, **language** (German/English), and Claude model, manage sidebar actions and chat presets, configure automatic sync, back up/restore settings as JSON, and check for updates:
+- **Settings** — create/edit/delete multiple vaults and switch the active one (including a folder picker), choose a theme, **language** (German/English), and Claude model, manage sidebar actions and chat presets, configure automatic sync, back up/restore settings as JSON, Windows autostart, and updates:
   - automatically run "New Sources" on app start
   - and/or on a fixed interval (minutes) in the background
 - **Themes** — four color schemes to choose from (Sunset, Midnight, Forest, Light), stored in `config.json` and active again automatically on next launch
+- **Autostart** — optionally launches the app automatically at Windows login, minimized to the tray (Settings → App Startup)
+- **Automatic updates** — the installed app checks for new versions on launch and on demand (Settings → About), downloads them in the background, and installs them after confirmation — no manual download/install needed. Only works in the installed app, not in development mode (`npm start`).
 - **Tray icon** — the app keeps running in the background when the window is closed (see note below); the tray menu can also trigger "New Sources" without an open window
 - **Desktop notifications** — when a prompt or auto-sync finishes while the window isn't focused
 - **Onboarding** — on the very first launch (or if the active vault folder doesn't exist), a short dialog walks you through picking a vault instead of silently running with a placeholder path
@@ -138,6 +140,19 @@ Builds the frontend and packages the app via `electron-builder` into a Windows i
 
 > **Windows note:** `electron-builder` downloads a tool package for Windows builds (including `rcedit`, used to embed the icon/version info into the `.exe` — this happens regardless of code signing). Extracting that archive creates symbolic links, which fails with `Cannot create symbolic link` unless **Developer Mode** is enabled (Settings → Privacy & security → For developers) or the terminal is run **"as Administrator"** — enable either once and it'll work. (Despite tips floating around online, the `CSC_IDENTITY_AUTO_DISCOVERY=false` env var does **not** help here — it only affects signing-identity discovery, not this download.)
 
+### Publishing a release (automated via GitHub Actions)
+
+Pushing a `v*` tag builds the installer on a GitHub-hosted Windows runner and publishes it automatically as a GitHub Release (including `latest.yml` for auto-update) — no manual `npm run dist` or uploading needed:
+
+```bash
+npm version 1.0.1   # bumps the version in package.json AND creates the git tag v1.0.1
+git push && git push --tags
+```
+
+Important: use `npm version` rather than tagging by hand — `electron-builder` reads the version number for the filename and release tag from `package.json`, not from the git tag itself. A tag pushed without a matching version bump in `package.json` produces a release under the wrong version number.
+
+The workflow lives at [`.github/workflows/release.yml`](.github/workflows/release.yml) and needs no extra secrets — it uses the `GITHUB_TOKEN` GitHub Actions provides automatically. A second workflow, [`.github/workflows/ci.yml`](.github/workflows/ci.yml), builds the frontend and syntax-checks `main.js`/`preload.js` on every push/PR to `main`, as a fast sanity check independent of the actual release.
+
 ## Tech Stack
 
 - **Electron** — desktop shell, main process in `main.js`, IPC bridge in `preload.js`
@@ -198,6 +213,8 @@ Lives under `app.getPath('userData')` — `%APPDATA%\Brain\config.json` on Windo
 | The window disappears when clicking X | Not a bug — the app keeps running in the tray (see [Notes](#notes)). Right-click the tray icon → "Quit" to actually close it |
 | The onboarding dialog reappears on every launch | The saved vault path no longer exists on disk — pick the folder again in the dialog |
 | No desktop notifications | Only fires when the window isn't focused; Windows notifications must also be allowed for the app (Settings → Notifications) |
+| "Check for updates" just shows a message but does nothing | Running in development mode (`npm start`) — auto-update only works in the app installed via the installer |
+| The autostart checkbox in Settings has no effect | Also only reliable in the installed app; in development mode Windows registers the login item pointing at the `electron.exe` inside `node_modules`, which can disappear on the next `npm install` |
 
 ## Notes
 

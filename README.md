@@ -48,10 +48,12 @@ Jeder Klick auf eine Aktion (z. B. "Wiki neu bauen") startet `claude` mit `cwd` 
   - **Git-Verlauf** — Commit-Liste inkl. Diff-Ansicht pro Commit
   - **Papierkorb** — gelöschte Dateien wiederherstellen oder endgültig entfernen
 - **Verlauf** — bisherige Claude-Code-Sessions im aktiven Vault durchstöbern, inkl. Volltextsuche über den Gesprächsinhalt, Anheften wichtiger Sessions und Export einer Session als Markdown
-- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), Design-Theme, **Sprache** (Deutsch/Englisch) und Claude-Modell wählen, Sidebar-Aktionen und Chat-Presets verwalten, automatisches Sync konfigurieren, Einstellungen als JSON sichern/wiederherstellen, und nach Updates suchen:
+- **Einstellungen** — mehrere Vaults anlegen/bearbeiten/löschen und den aktiven Vault wechseln (inkl. Ordner-Dialog), Design-Theme, **Sprache** (Deutsch/Englisch) und Claude-Modell wählen, Sidebar-Aktionen und Chat-Presets verwalten, automatisches Sync konfigurieren, Einstellungen als JSON sichern/wiederherstellen, Autostart mit Windows und Updates:
   - beim App-Start automatisch "Neue Sources" ausführen
   - und/oder in einem festen Intervall (Minuten) im Hintergrund
 - **Themes** — vier Farbschemata zur Auswahl (Sunset, Midnight, Forest, Light), gespeichert in `config.json` und beim nächsten Start automatisch wieder aktiv
+- **Autostart** — optional startet die App automatisch beim Windows-Login, minimiert im Tray (Einstellungen → App-Start)
+- **Automatische Updates** — die installierte App prüft beim Start und auf Knopfdruck (Einstellungen → Über) selbstständig auf neue Versionen, lädt sie im Hintergrund herunter und installiert sie nach Bestätigung — kein manuelles Herunterladen/Installieren nötig. Funktioniert nur in der installierten App, nicht im Entwicklungsmodus (`npm start`).
 - **Tray-Icon** — die App läuft im Hintergrund weiter, wenn das Fenster geschlossen wird (siehe Hinweis unten); über das Tray-Menü lässt sich "Neue Sources" auch ohne offenes Fenster anstoßen
 - **Desktop-Benachrichtigungen** — wenn ein Prompt oder Auto-Sync fertig ist, während das Fenster nicht fokussiert ist
 - **Onboarding** — beim allerersten Start (oder wenn der aktive Vault-Ordner nicht existiert) führt ein kurzer Dialog durch die Vault-Auswahl, statt stillschweigend mit einem Platzhalterpfad zu laufen
@@ -138,6 +140,19 @@ Baut das Frontend und packt die App via `electron-builder` zu einer Windows-Inst
 
 > **Hinweis für Windows:** `electron-builder` lädt für Windows-Builds ein Tool-Paket herunter (u. a. `rcedit`, zum Einbetten von Icon/Versionsinfo in die `.exe` — das passiert auch ohne Codesignatur). Das Entpacken dieses Archivs legt symbolische Links an, was ohne aktivierten **Entwicklermodus** (Einstellungen → Datenschutz & Sicherheit → Für Entwickler) oder ohne Terminal **"Als Administrator ausführen"** mit `Cannot create symbolic link` fehlschlägt — einmal eines von beiden aktivieren, dann läuft's. (Die Umgebungsvariable `CSC_IDENTITY_AUTO_DISCOVERY=false` hilft hier trotz anderslautender Tipps im Netz **nicht**, da sie nur die Signatur-Identitätssuche betrifft, nicht diesen Download.)
 
+### Release veröffentlichen (automatisch via GitHub Actions)
+
+Ein Push eines `v*`-Tags baut den Installer auf einem GitHub-gehosteten Windows-Runner und veröffentlicht ihn automatisch als GitHub Release (inkl. `latest.yml` fürs Auto-Update) — kein manuelles `npm run dist` oder Hochladen nötig:
+
+```bash
+npm version 1.0.1   # bumpt die Version in package.json UND legt den Git-Tag v1.0.1 an
+git push && git push --tags
+```
+
+Wichtig: `npm version` verwenden statt den Tag von Hand zu setzen — `electron-builder` liest die Versionsnummer für Dateiname und Release-Tag aus `package.json`, nicht aus dem Git-Tag selbst. Ein Tag ohne passende Versionsbump in `package.json` führt zu einem Release unter der falschen Versionsnummer.
+
+Der Workflow liegt in [`.github/workflows/release.yml`](.github/workflows/release.yml) und braucht keine zusätzlichen Secrets — er nutzt das von GitHub Actions automatisch bereitgestellte `GITHUB_TOKEN`. Ein zweiter Workflow, [`.github/workflows/ci.yml`](.github/workflows/ci.yml), baut bei jedem Push/PR auf `main` das Frontend und prüft `main.js`/`preload.js` auf Syntaxfehler — als schnelle Absicherung, unabhängig vom eigentlichen Release.
+
 ## Tech Stack
 
 - **Electron** — Desktop-Shell, Main-Prozess in `main.js`, IPC-Bridge in `preload.js`
@@ -198,6 +213,8 @@ Liegt unter `app.getPath('userData')` — unter Windows `%APPDATA%\Brain\config.
 | Fenster verschwindet beim Klick auf X | Kein Bug — die App läuft im Tray weiter (siehe [Hinweise](#hinweise)). Rechtsklick auf das Tray-Icon → "Beenden" für echtes Schließen |
 | Onboarding-Dialog erscheint bei jedem Start erneut | Der eingetragene Vault-Pfad existiert nicht (mehr) auf der Festplatte — Ordner im Dialog neu auswählen |
 | Keine Desktop-Benachrichtigungen | Nur wenn das Fenster nicht fokussiert ist; zusätzlich müssen Windows-Benachrichtigungen für die App erlaubt sein (Einstellungen → Benachrichtigungen) |
+| "Nach Updates suchen" zeigt nur einen Hinweis, tut aber nichts | Läuft im Entwicklungsmodus (`npm start`) — Auto-Update funktioniert nur in der über den Installer installierten App |
+| Autostart-Häkchen in den Einstellungen bleibt wirkungslos | Ebenfalls nur in der installierten App zuverlässig; im Entwicklungsmodus registriert Windows den Eintrag auf den `electron.exe` im `node_modules`-Ordner, was beim nächsten `npm install` verschwinden kann |
 
 ## Hinweise
 

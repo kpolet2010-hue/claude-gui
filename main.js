@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, Notification } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const crossSpawn = require('cross-spawn');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -150,10 +151,13 @@ let mainWindow = null;
 let tray = null;
 
 function createWindow() {
+  const startHidden = process.argv.includes('--hidden');
+
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 750,
     icon: ICON_PATH,
+    show: !startHidden,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -203,6 +207,52 @@ function createTray() {
   });
 }
 
+function setupAutoUpdater() {
+  if (!app.isPackaged) return;
+
+  autoUpdater.autoDownload = true;
+
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send('update-status', { status: 'available', version: info.version });
+  });
+  autoUpdater.on('update-not-available', () => {
+    mainWindow?.webContents.send('update-status', { status: 'not-available' });
+  });
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send('update-status', { status: 'downloading', percent: Math.round(progress.percent) });
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    mainWindow?.webContents.send('update-status', { status: 'downloaded', version: info.version });
+  });
+  autoUpdater.on('error', (err) => {
+    mainWindow?.webContents.send('update-status', { status: 'error', message: err.message });
+  });
+
+  // Check once shortly after launch, in addition to the manual "check for updates" button.
+  setTimeout(() => autoUpdater.checkForUpdates(), 5000);
+}
+
+ipcMain.handle('check-for-app-updates', async () => {
+  if (!app.isPackaged) return { status: 'dev-mode' };
+  autoUpdater.checkForUpdates();
+  return { status: 'checking' };
+});
+
+ipcMain.handle('install-update', async () => {
+  autoUpdater.quitAndInstall();
+});
+
+ipcMain.handle('get-auto-launch', async () => app.getLoginItemSettings().openAtLogin);
+
+ipcMain.handle('set-auto-launch', async (event, enabled) => {
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    path: process.execPath,
+    args: enabled ? ['--hidden'] : [],
+  });
+  return enabled;
+});
+
 app.whenReady().then(() => {
   initDataPaths();
   configState = loadConfig();
@@ -210,6 +260,7 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   scheduleAutoSync();
+  setupAutoUpdater();
 });
 
 app.on('window-all-closed', () => {
@@ -816,21 +867,6 @@ ipcMain.handle('remove-preset', async (event, id) => {
 });
 
 ipcMain.handle('get-app-version', async () => app.getVersion());
-
-ipcMain.handle('check-for-updates', async () => {
-  try {
-    const res = await fetch('https://api.github.com/repos/kpolet2010-hue/claude-gui/releases/latest', {
-      headers: { 'User-Agent': 'brain-app' },
-    });
-    if (!res.ok) return { hasUpdate: false };
-    const data = await res.json();
-    const latest = (data.tag_name || '').replace(/^v/, '');
-    const current = app.getVersion();
-    return { hasUpdate: !!latest && latest !== current, latestVersion: latest, url: data.html_url };
-  } catch {
-    return { hasUpdate: false };
-  }
-});
 
 ipcMain.handle('export-config', async () => {
   const result = await dialog.showSaveDialog(mainWindow, {

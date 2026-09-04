@@ -42,15 +42,24 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
   const [presetEdits, setPresetEdits] = useState({});
   const [newPreset, setNewPreset] = useState({ label: '', systemPrompt: '' });
   const [appVersion, setAppVersion] = useState('');
-  const [updateCheck, setUpdateCheck] = useState(null);
+  const [updateStatus, setUpdateStatus] = useState(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [autoLaunch, setAutoLaunchState] = useState(false);
   const showToast = useToast();
 
   useEffect(() => {
     if (!active) return;
     (async () => setConfig(await window.claudeAPI.getConfig()))();
     (async () => setAppVersion(await window.claudeAPI.getAppVersion()))();
+    (async () => setAutoLaunchState(await window.claudeAPI.getAutoLaunch()))();
   }, [active]);
+
+  useEffect(() => {
+    window.claudeAPI.onUpdateStatus((data) => {
+      setUpdateStatus(data);
+      if (data.status !== 'checking') setCheckingUpdate(false);
+    });
+  }, []);
 
   function editField(name, field, value) {
     setEdits((prev) => ({ ...prev, [name]: { ...prev[name], [field]: value } }));
@@ -208,8 +217,20 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
 
   async function handleCheckUpdate() {
     setCheckingUpdate(true);
-    setUpdateCheck(await window.claudeAPI.checkForUpdates());
-    setCheckingUpdate(false);
+    const result = await window.claudeAPI.checkForAppUpdates();
+    if (result.status === 'dev-mode') {
+      setUpdateStatus({ status: 'dev-mode' });
+      setCheckingUpdate(false);
+    }
+    // otherwise wait for the 'update-status' event to arrive and clear checkingUpdate
+  }
+
+  async function handleInstallUpdate() {
+    await window.claudeAPI.installUpdate();
+  }
+
+  async function toggleAutoLaunch(enabled) {
+    setAutoLaunchState(await window.claudeAPI.setAutoLaunch(enabled));
   }
 
   async function handleExportConfig() {
@@ -448,6 +469,14 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
       </div>
 
       <div className="settings-section">
+        <div className="settings-section-label">{t('settings.startTitle')}</div>
+        <label className="settings-checkbox-row">
+          <input type="checkbox" checked={autoLaunch} onChange={(e) => toggleAutoLaunch(e.target.checked)} />
+          {t('settings.autoLaunch')}
+        </label>
+      </div>
+
+      <div className="settings-section">
         <div className="settings-section-label">{t('settings.autoSyncTitle')}</div>
 
         <label className="settings-checkbox-row">
@@ -498,11 +527,21 @@ export default function SettingsView({ active, onVaultChanged, onActionsChanged,
         <button className="preset-btn" style={{ width: 'auto' }} onClick={handleCheckUpdate} disabled={checkingUpdate}>
           {checkingUpdate ? t('settings.checkingUpdate') : t('settings.checkUpdate')}
         </button>
-        {updateCheck && (
+        {updateStatus && (
           <div className="settings-hint" style={{ marginTop: 10 }}>
-            {updateCheck.hasUpdate
-              ? t('settings.updateAvailable', { version: updateCheck.latestVersion, url: updateCheck.url })
-              : t('settings.upToDate')}
+            {updateStatus.status === 'dev-mode' && t('settings.updateDevMode')}
+            {updateStatus.status === 'not-available' && t('settings.upToDate')}
+            {updateStatus.status === 'available' && t('settings.updateAvailable', { version: updateStatus.version })}
+            {updateStatus.status === 'downloading' && t('settings.updateDownloading', { percent: updateStatus.percent })}
+            {updateStatus.status === 'error' && t('settings.updateError', { message: updateStatus.message })}
+            {updateStatus.status === 'downloaded' && (
+              <>
+                {t('settings.updateDownloaded', { version: updateStatus.version })}{' '}
+                <button className="preset-btn" style={{ width: 'auto', marginTop: 8 }} onClick={handleInstallUpdate}>
+                  {t('settings.installUpdate')}
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
